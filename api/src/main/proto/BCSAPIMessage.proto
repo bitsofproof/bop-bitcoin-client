@@ -1,0 +1,96 @@
+/*
+ * Copyright 2013 bits of proof zrt.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.bitsofproof.supernode.api;
+
+message Ping {
+	required uint64 nonce = 1;
+}
+
+message Alert {
+	required string alert = 1;
+	required uint32 severity = 2; 			// 0: info, 1: warning, 2: error
+}
+
+// input point of a transaction. 
+message TransactionInput {
+	required bytes source = 1; 				// source transaction hash
+	required uint32 sourceix = 2;    		// index of the output in the source stransaction
+	required uint32 sequence = 3; 			// higher wins
+	required bytes script = 4;    			// inputs to the script of the transaction output
+}
+
+// output point of a transaction. 
+message TransactionOutput {
+	required uint64 value = 1; 				// value that can be claimed ...
+	required bytes script = 2; 				// ... if satisfying this output script
+}
+
+// a transaction. 
+message Transaction {
+	required uint32 version = 1;
+	required uint32 locktime = 2;   		// block number or time this is valid from
+	repeated TransactionInput inputs = 3;
+	repeated TransactionOutput outputs = 4;
+	optional bytes block = 5;
+	optional uint32 height = 6;
+	optional uint32 blocktime = 7;
+	optional bytes offendingTx = 8;			// double spending tx
+	optional bool expired = 9;			// transaction dropped out of mem pool
+}
+
+// a block. 
+// matches the P2P Bitcoin protocol message
+message Block {
+	required uint32 version = 1;
+	required bytes previousBlock = 2;		// previos block hash
+	required bytes merkleRoot = 3;			// block content hash tree root
+	required uint32 timestamp = 4;			// the block was mined at
+	required uint32 difficulty = 5;			// encoded difficulty for POW
+	required uint32 nonce = 6;				// parameter of POW
+	repeated Transaction transactions = 7;
+	optional uint32 height = 8;
+}
+
+
+// a block chain reorg is a transaction removing and adding a few blocks at once
+message TrunkUpdate {
+	repeated Block added = 1;				// blocks added to trunk
+	repeated Block removed = 2;				// blocks no longer on trunk
+}
+
+message Hash {
+	repeated bytes hash = 1;
+}
+
+message ExceptionMessage {
+	repeated string message = 1;
+}
+
+message ExactMatchRequest
+{
+	required uint32 mode = 1;
+	repeated bytes match = 2;
+	optional uint64 after = 3;
+}
+
+message AccountRequest
+{
+	required string publicKey = 1;
+	required uint32 lookAhead = 2;
+	optional uint64 after = 3;
+	optional uint32 firstIndex = 4;
+}
