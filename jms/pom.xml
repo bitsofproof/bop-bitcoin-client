@@ -12,12 +12,6 @@
                 <relativePath>../</relativePath>
         </parent>
 
-	<scm>
-		<connection>scm:git:git@github.com:bitsofproof/bop-bitcoin-server-api-jms.git</connection>
-		<developerConnection>scm:git:git@github.com:bitsofproof/bop-bitcoin-server-api-jms.git</developerConnection>
-		<tag>HEAD</tag>
-	</scm>
-	
 	<dependencies>
 		<dependency>
 			<groupId>com.bitsofproof</groupId>

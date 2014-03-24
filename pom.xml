@@ -28,7 +28,14 @@
 		</developer>
 	</developers>
 
-	<contributors>
+
+       <scm>
+                <connection>scm:git:git@github.com:bitsofproof/bop-bitcoin-client.git</connection>
+                <developerConnection>scm:git:git@github.com:bitsofproof/bop-bitcoin-client.git</developerConnection>
+                <tag>HEAD</tag>
+        </scm>
+        
+  	<contributors>
 		<contributor>
 			<name>Tamás Bártfai</name>
 			<email>bartfaitamas@gmail.com</email>

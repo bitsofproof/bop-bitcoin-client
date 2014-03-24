@@ -13,12 +13,6 @@
 		<relativePath>../</relativePath>
 	</parent>
 
-       <scm>
-                <connection>scm:git:git@github.com:bitsofproof/bop-bitcoin-server-api.git</connection>
-                <developerConnection>scm:git:git@github.com:bitsofproof/bop-bitcoin-server-api.git</developerConnection>
-                <tag>HEAD</tag>
-        </scm>
-
 	<pluginRepositories>
 		<pluginRepository>
 			<id>dtrott</id>
