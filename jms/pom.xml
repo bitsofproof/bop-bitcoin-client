@@ -15,7 +15,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>com.bitsofproof</groupId>
-			<artifactId>bop-bitcoin-server-api</artifactId>
+			<artifactId>bop-bitcoin-client-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
