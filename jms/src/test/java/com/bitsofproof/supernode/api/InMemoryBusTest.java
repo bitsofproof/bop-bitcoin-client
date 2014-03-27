@@ -32,7 +32,7 @@ import javax.jms.Session;
 
 import org.junit.Test;
 
-import com.bitsofproof.supernode.common.InMemoryBusConnectionFactory;
+import com.bitsofproof.supernode.jms.InMemoryBusConnectionFactory;
 
 public class InMemoryBusTest
 {

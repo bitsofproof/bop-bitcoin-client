@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bitsofproof.supernode.api;
+package com.bitsofproof.supernode.jms;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,6 +38,16 @@ import javax.jms.TemporaryQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.bitsofproof.supernode.api.Address;
+import com.bitsofproof.supernode.api.AlertListener;
+import com.bitsofproof.supernode.api.BCSAPI;
+import com.bitsofproof.supernode.api.BCSAPIException;
+import com.bitsofproof.supernode.api.BCSAPIMessage;
+import com.bitsofproof.supernode.api.Block;
+import com.bitsofproof.supernode.api.Transaction;
+import com.bitsofproof.supernode.api.TransactionListener;
+import com.bitsofproof.supernode.api.TrunkListener;
+import com.bitsofproof.supernode.api.TrunkUpdateMessage;
 import com.bitsofproof.supernode.common.BloomFilter.UpdateMode;
 import com.bitsofproof.supernode.common.ExtendedKey;
 import com.bitsofproof.supernode.common.Hash;
