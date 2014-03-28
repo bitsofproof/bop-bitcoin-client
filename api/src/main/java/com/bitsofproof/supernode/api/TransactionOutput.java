@@ -29,7 +29,6 @@ public class TransactionOutput implements Serializable, Cloneable
 	private long ix;
 	private long value;
 	private byte[] script;
-	private String color;
 
 	public String getTxHash ()
 	{
@@ -114,24 +113,9 @@ public class TransactionOutput implements Serializable, Cloneable
 			o.script = new byte[script.length];
 			System.arraycopy (script, 0, o.script, 0, script.length);
 		}
-		if ( color != null )
-		{
-			o.color = color;
-		}
 		o.ix = ix;
 		o.txHash = txHash;
 		return o;
-
-	}
-
-	public String getColor ()
-	{
-		return color;
-	}
-
-	public void setColor (String color)
-	{
-		this.color = color;
 	}
 
 	public BCSAPIMessage.TransactionOutput toProtobuf ()
