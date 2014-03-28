@@ -146,11 +146,11 @@ public class ExtendedKey
 			byte[] l = Arrays.copyOfRange (lr, 0, 32);
 			byte[] r = Arrays.copyOfRange (lr, 32, 64);
 			BigInteger m = new BigInteger (1, l);
-			if ( m.compareTo (curve.getN ()) >= 0 )
+			if ( m.compareTo (curve.getN ()) >= 0 || m.compareTo (BigInteger.ZERO) == 0 )
 			{
 				throw new ValidationException ("This is rather unlikely, but it did just happen");
 			}
-			ECKeyPair keyPair = new ECKeyPair (l, true);
+			ECKeyPair keyPair = new ECKeyPair (m, true);
 			return new ExtendedKey (keyPair, r, 0, 0, 0);
 		}
 		catch ( NoSuchAlgorithmException e )
@@ -280,14 +280,14 @@ public class ExtendedKey
 			byte[] r = Arrays.copyOfRange (lr, 32, 64);
 
 			BigInteger m = new BigInteger (1, l);
-			if ( m.compareTo (curve.getN ()) >= 0 )
+			if ( m.compareTo (curve.getN ()) >= 0 || m.compareTo (BigInteger.ZERO) == 0 )
 			{
 				throw new ValidationException ("This is rather unlikely, but it did just happen");
 			}
 			if ( master.getPrivate () != null )
 			{
 				BigInteger k = m.add (new BigInteger (1, master.getPrivate ())).mod (curve.getN ());
-				if ( k.equals (BigInteger.ZERO) )
+				if ( k.compareTo (BigInteger.ZERO) == 0 )
 				{
 					throw new ValidationException ("This is rather unlikely, but it did just happen");
 				}
