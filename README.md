@@ -15,7 +15,7 @@ Then
 
     git clone https://github.com/bitsofproof/bop-bitcoin-server-api
 
-    cd bop-bitcoin-server-api
+    cd bop-bitcoin-client
    
     mvn package
 
