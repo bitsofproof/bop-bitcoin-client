@@ -31,6 +31,7 @@
 	<scm>
 		<connection>scm:git:git@github.com:bitsofproof/bop-bitcoin-client.git</connection>
 		<developerConnection>scm:git:git@github.com:bitsofproof/bop-bitcoin-client.git</developerConnection>
+		<url>https://github.com/bitsofproof/bop-bitcoin-client</url>
 		<tag>HEAD</tag>
 	</scm>
         
