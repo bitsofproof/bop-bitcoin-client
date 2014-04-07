@@ -16,6 +16,8 @@
 package com.bitsofproof.supernode.api;
 
 import java.io.Serializable;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -392,5 +394,98 @@ public class Transaction implements Serializable, Cloneable
 			transaction.offendingTx = new Hash (pt.getOffendingTx ().toByteArray ()).toString ();
 		}
 		return transaction;
+	}
+
+	public byte[] hashTransaction (int inr, int hashType, byte[] script) throws ValidationException
+	{
+		Transaction copy;
+		try
+		{
+			copy = clone ();
+		}
+		catch ( CloneNotSupportedException e1 )
+		{
+			return null;
+		}
+
+		// implicit SIGHASH_ALL
+		int i = 0;
+		for ( TransactionInput in : copy.getInputs () )
+		{
+			if ( i == inr )
+			{
+				in.setScript (script);
+			}
+			else
+			{
+				in.setScript (new byte[0]);
+			}
+			++i;
+		}
+
+		if ( (hashType & 0x1f) == ScriptFormat.SIGHASH_NONE )
+		{
+			copy.getOutputs ().clear ();
+			i = 0;
+			for ( TransactionInput in : copy.getInputs () )
+			{
+				if ( i != inr )
+				{
+					in.setSequence (0);
+				}
+				++i;
+			}
+		}
+		else if ( (hashType & 0x1f) == ScriptFormat.SIGHASH_SINGLE )
+		{
+			int onr = inr;
+			if ( onr >= copy.getOutputs ().size () )
+			{
+				// this is a Satoshi client bug.
+				// This case should throw an error but it instead retuns 1 that is not checked and interpreted as below
+				return ByteUtils.fromHex ("0100000000000000000000000000000000000000000000000000000000000000");
+			}
+			for ( i = copy.getOutputs ().size () - 1; i > onr; --i )
+			{
+				copy.getOutputs ().remove (i);
+			}
+			for ( i = 0; i < onr; ++i )
+			{
+				copy.getOutputs ().get (i).setScript (new byte[0]);
+				copy.getOutputs ().get (i).setValue (-1L);
+			}
+			i = 0;
+			for ( TransactionInput in : copy.getInputs () )
+			{
+				if ( i != inr )
+				{
+					in.setSequence (0);
+				}
+				++i;
+			}
+		}
+		if ( (hashType & ScriptFormat.SIGHASH_ANYONECANPAY) != 0 )
+		{
+			List<TransactionInput> oneIn = new ArrayList<> ();
+			oneIn.add (copy.getInputs ().get (inr));
+			copy.setInputs (oneIn);
+		}
+
+		WireFormat.Writer writer = new WireFormat.Writer ();
+		copy.toWire (writer);
+
+		byte[] txwire = writer.toByteArray ();
+		byte[] hash = null;
+		try
+		{
+			MessageDigest a = MessageDigest.getInstance ("SHA-256");
+			a.update (txwire);
+			a.update (new byte[] { (byte) (hashType & 0xff), 0, 0, 0 });
+			hash = a.digest (a.digest ());
+		}
+		catch ( NoSuchAlgorithmException ignored )
+		{
+		}
+		return hash;
 	}
 }
