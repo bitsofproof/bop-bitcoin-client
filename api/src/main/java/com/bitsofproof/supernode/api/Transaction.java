@@ -488,4 +488,17 @@ public class Transaction implements Serializable, Cloneable
 		}
 		return hash;
 	}
+
+	@Override
+	public int hashCode ()
+	{
+		return hash.hashCode ();
+	}
+
+	@Override
+	public boolean equals (Object obj)
+	{
+		return hash.equals (((Transaction) obj).getHash ());
+	}
+
 }
