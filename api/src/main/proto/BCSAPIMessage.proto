@@ -69,6 +69,10 @@ message Hash {
 	repeated bytes hash = 1;
 }
 
+message TrunkUpdate {
+	repeated Block added = 1;
+}
+
 message ExceptionMessage {
 	repeated string message = 1;
 }
