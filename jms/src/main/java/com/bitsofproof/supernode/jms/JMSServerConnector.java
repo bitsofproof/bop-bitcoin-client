@@ -531,9 +531,9 @@ public class JMSServerConnector implements BCSAPI
 	}
 
 	@Override
-	public void catchUp (String hash, final TrunkListener listener) throws BCSAPIException
+	public void catchUp (List<String> inventory, final TrunkListener listener) throws BCSAPIException
 	{
-		log.trace ("catchUp from " + hash);
+		log.trace ("catchUp");
 		BytesMessage m;
 		Session session = null;
 		try
@@ -543,26 +543,15 @@ public class JMSServerConnector implements BCSAPI
 
 			m = session.createBytesMessage ();
 			BCSAPIMessage.Hash.Builder builder = BCSAPIMessage.Hash.newBuilder ();
-			builder.addHash (ByteString.copyFrom (new Hash (hash).toByteArray ()));
+			for ( String hash : inventory )
+			{
+				builder.addHash (ByteString.copyFrom (new Hash (hash).toByteArray ()));
+			}
 			m.writeBytes (builder.build ().toByteArray ());
 			byte[] response = synchronousRequest (session, transactionRequestProducer, m);
 			if ( response != null )
 			{
 				TrunkUpdateMessage tu = TrunkUpdateMessage.fromProtobuf (BCSAPIMessage.TrunkUpdate.parseFrom (response));
-				if ( tu.getRemoved () != null )
-				{
-					for ( Block b : tu.getRemoved () )
-					{
-						b.computeHash ();
-					}
-				}
-				if ( tu.getAdded () != null )
-				{
-					for ( Block b : tu.getAdded () )
-					{
-						b.computeHash ();
-					}
-				}
 				listener.trunkUpdate (tu.getRemoved (), tu.getAdded ());
 			}
 		}
@@ -634,20 +623,6 @@ public class JMSServerConnector implements BCSAPI
 					try
 					{
 						TrunkUpdateMessage tu = TrunkUpdateMessage.fromProtobuf (BCSAPIMessage.TrunkUpdate.parseFrom (body));
-						if ( tu.getRemoved () != null )
-						{
-							for ( Block b : tu.getRemoved () )
-							{
-								b.computeHash ();
-							}
-						}
-						if ( tu.getAdded () != null )
-						{
-							for ( Block b : tu.getAdded () )
-							{
-								b.computeHash ();
-							}
-						}
 						listener.trunkUpdate (tu.getRemoved (), tu.getAdded ());
 					}
 					catch ( Exception e )

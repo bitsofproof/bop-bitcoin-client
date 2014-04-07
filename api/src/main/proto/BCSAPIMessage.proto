@@ -68,8 +68,8 @@ message Block {
 
 // a block chain reorg is a transaction removing and adding a few blocks at once
 message TrunkUpdate {
-	repeated Block added = 1;				// blocks added to trunk
-	repeated Block removed = 2;				// blocks no longer on trunk
+	repeated bytes added = 1;				// blocks added to trunk
+	repeated bytes removed = 2;				// blocks no longer on trunk
 }
 
 message Hash {
