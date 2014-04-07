@@ -65,13 +65,6 @@ message Block {
 	optional uint32 height = 8;
 }
 
-
-// a block chain reorg is a transaction removing and adding a few blocks at once
-message TrunkUpdate {
-	repeated bytes added = 1;				// blocks added to trunk
-	repeated bytes removed = 2;				// blocks no longer on trunk
-}
-
 message Hash {
 	repeated bytes hash = 1;
 }

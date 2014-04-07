@@ -47,7 +47,6 @@ import com.bitsofproof.supernode.api.Block;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
 import com.bitsofproof.supernode.api.TrunkListener;
-import com.bitsofproof.supernode.api.TrunkUpdateMessage;
 import com.bitsofproof.supernode.common.BloomFilter.UpdateMode;
 import com.bitsofproof.supernode.common.ExtendedKey;
 import com.bitsofproof.supernode.common.Hash;
@@ -551,8 +550,13 @@ public class JMSServerConnector implements BCSAPI
 			byte[] response = synchronousRequest (session, transactionRequestProducer, m);
 			if ( response != null )
 			{
-				TrunkUpdateMessage tu = TrunkUpdateMessage.fromProtobuf (BCSAPIMessage.TrunkUpdate.parseFrom (response));
-				listener.trunkUpdate (tu.getRemoved (), tu.getAdded ());
+				BCSAPIMessage.Hash hashes = BCSAPIMessage.Hash.parseFrom (response);
+				List<String> hashList = new ArrayList<String> ();
+				for ( ByteString h : hashes.getHashList () )
+				{
+					hashList.add (new Hash (h.toByteArray ()).toString ());
+				}
+				listener.trunkUpdate (hashList);
 			}
 		}
 		catch ( JMSException e )
@@ -622,8 +626,13 @@ public class JMSServerConnector implements BCSAPI
 				{
 					try
 					{
-						TrunkUpdateMessage tu = TrunkUpdateMessage.fromProtobuf (BCSAPIMessage.TrunkUpdate.parseFrom (body));
-						listener.trunkUpdate (tu.getRemoved (), tu.getAdded ());
+						BCSAPIMessage.Hash hashes = BCSAPIMessage.Hash.parseFrom (body);
+						List<String> hashList = new ArrayList<String> ();
+						for ( ByteString h : hashes.getHashList () )
+						{
+							hashList.add (new Hash (h.toByteArray ()).toString ());
+						}
+						listener.trunkUpdate (hashList);
 					}
 					catch ( Exception e )
 					{
