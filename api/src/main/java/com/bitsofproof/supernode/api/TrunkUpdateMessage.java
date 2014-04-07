@@ -19,23 +19,26 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.bitsofproof.supernode.common.Hash;
+import com.google.protobuf.ByteString;
+
 public class TrunkUpdateMessage implements Serializable
 {
-	private static final long serialVersionUID = 6012842751107958147L;
-	private final List<Block> added;
-	private final List<Block> removed;
+	private static final long serialVersionUID = 3218705325909725834L;
+	private final List<String> added;
+	private final List<String> removed;
 
-	public List<Block> getAdded ()
+	public List<String> getAdded ()
 	{
 		return added;
 	}
 
-	public List<Block> getRemoved ()
+	public List<String> getRemoved ()
 	{
 		return removed;
 	}
 
-	public TrunkUpdateMessage (List<Block> added, List<Block> removed)
+	public TrunkUpdateMessage (List<String> added, List<String> removed)
 	{
 		super ();
 		this.added = added;
@@ -47,16 +50,16 @@ public class TrunkUpdateMessage implements Serializable
 		BCSAPIMessage.TrunkUpdate.Builder builder = BCSAPIMessage.TrunkUpdate.newBuilder ();
 		if ( added != null )
 		{
-			for ( Block a : added )
+			for ( String a : added )
 			{
-				builder.addAdded (a.toProtobuf ());
+				builder.addAdded (ByteString.copyFrom (new Hash (a).toByteArray ()));
 			}
 		}
 		if ( removed != null )
 		{
-			for ( Block r : removed )
+			for ( String r : removed )
 			{
-				builder.addRemoved (r.toProtobuf ());
+				builder.addRemoved (ByteString.copyFrom (new Hash (r).toByteArray ()));
 			}
 		}
 
@@ -65,22 +68,22 @@ public class TrunkUpdateMessage implements Serializable
 
 	public static TrunkUpdateMessage fromProtobuf (BCSAPIMessage.TrunkUpdate pu)
 	{
-		List<Block> added = new ArrayList<Block> ();
-		List<Block> removed = new ArrayList<Block> ();
+		List<String> added = new ArrayList<String> ();
+		List<String> removed = new ArrayList<String> ();
 		if ( pu.getAddedCount () > 0 )
 		{
-			added = new ArrayList<Block> ();
-			for ( BCSAPIMessage.Block b : pu.getAddedList () )
+			added = new ArrayList<String> ();
+			for ( ByteString b : pu.getAddedList () )
 			{
-				added.add (Block.fromProtobuf (b));
+				added.add (new Hash (b.toByteArray ()).toString ());
 			}
 		}
 		if ( pu.getRemovedCount () > 0 )
 		{
-			removed = new ArrayList<Block> ();
-			for ( BCSAPIMessage.Block b : pu.getRemovedList () )
+			removed = new ArrayList<String> ();
+			for ( ByteString b : pu.getRemovedList () )
 			{
-				removed.add (Block.fromProtobuf (b));
+				removed.add (new Hash (b.toByteArray ()).toString ());
 			}
 		}
 		return new TrunkUpdateMessage (added, removed);

@@ -15,6 +15,7 @@
  */
 package com.bitsofproof.supernode.api;
 
+import java.util.List;
 import java.util.Set;
 
 import com.bitsofproof.supernode.common.BloomFilter.UpdateMode;
@@ -157,12 +158,11 @@ public interface BCSAPI
 	public void scanUTXOForAddresses (Set<Address> addresses, UpdateMode mode, long after, TransactionListener listener) throws BCSAPIException;
 
 	/**
-	 * Generate a trunk update to cach up from a last seen block
+	 * Generate a trunk update to cach up from current inventory
 	 * 
 	 * @param hash
 	 * @param listener
 	 * @throws BCSAPIException
 	 */
-	@Deprecated
-	public void catchUp (String hash, TrunkListener listener) throws BCSAPIException;
+	public void catchUp (List<String> inventory, TrunkListener listener) throws BCSAPIException;
 }
