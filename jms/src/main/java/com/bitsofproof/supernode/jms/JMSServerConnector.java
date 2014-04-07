@@ -550,13 +550,13 @@ public class JMSServerConnector implements BCSAPI
 			byte[] response = synchronousRequest (session, transactionRequestProducer, m);
 			if ( response != null )
 			{
-				BCSAPIMessage.Hash hashes = BCSAPIMessage.Hash.parseFrom (response);
-				List<String> hashList = new ArrayList<String> ();
-				for ( ByteString h : hashes.getHashList () )
+				BCSAPIMessage.TrunkUpdate blockMessage = BCSAPIMessage.TrunkUpdate.parseFrom (response);
+				List<Block> blockList = new ArrayList<Block> ();
+				for ( BCSAPIMessage.Block b : blockMessage.getAddedList () )
 				{
-					hashList.add (new Hash (h.toByteArray ()).toString ());
+					blockList.add (Block.fromProtobuf (b));
 				}
-				listener.trunkUpdate (hashList);
+				listener.trunkUpdate (blockList);
 			}
 		}
 		catch ( JMSException e )
@@ -626,13 +626,13 @@ public class JMSServerConnector implements BCSAPI
 				{
 					try
 					{
-						BCSAPIMessage.Hash hashes = BCSAPIMessage.Hash.parseFrom (body);
-						List<String> hashList = new ArrayList<String> ();
-						for ( ByteString h : hashes.getHashList () )
+						BCSAPIMessage.TrunkUpdate blockMessage = BCSAPIMessage.TrunkUpdate.parseFrom (body);
+						List<Block> blockList = new ArrayList<Block> ();
+						for ( BCSAPIMessage.Block b : blockMessage.getAddedList () )
 						{
-							hashList.add (new Hash (h.toByteArray ()).toString ());
+							blockList.add (Block.fromProtobuf (b));
 						}
-						listener.trunkUpdate (hashList);
+						listener.trunkUpdate (blockList);
 					}
 					catch ( Exception e )
 					{

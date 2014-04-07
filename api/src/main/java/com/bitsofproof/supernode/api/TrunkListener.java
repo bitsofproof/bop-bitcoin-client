@@ -19,5 +19,5 @@ import java.util.List;
 
 public interface TrunkListener
 {
-	public void trunkUpdate (List<String> added);
+	public void trunkUpdate (List<Block> added);
 }
