@@ -91,4 +91,20 @@ public class ECPublicKey implements Key
 	{
 		return this;
 	}
+
+	@Override
+	public int hashCode ()
+	{
+		return Arrays.hashCode (pub);
+	}
+
+	@Override
+	public boolean equals (Object obj)
+	{
+		if ( obj instanceof ECPublicKey )
+		{
+			return Arrays.areEqual (pub, ((ECPublicKey) obj).pub) && compressed == ((ECPublicKey) obj).compressed;
+		}
+		return false;
+	}
 }

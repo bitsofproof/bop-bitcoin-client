@@ -429,4 +429,22 @@ public class ExtendedKey
 		}
 		return new ExtendedKey (key, chainCode, depth, parent, sequence);
 	}
+
+	@Override
+	public int hashCode ()
+	{
+		return master.hashCode ();
+	}
+
+	@Override
+	public boolean equals (Object obj)
+	{
+		if ( obj instanceof ExtendedKey )
+		{
+			return master.equals (((ExtendedKey) obj).master) && Arrays.areEqual (chainCode, ((ExtendedKey) obj).chainCode)
+					&& depth == ((ExtendedKey) obj).depth &&
+					parent == ((ExtendedKey) obj).parent && sequence == ((ExtendedKey) obj).sequence;
+		}
+		return false;
+	}
 }
