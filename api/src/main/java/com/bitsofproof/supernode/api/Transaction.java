@@ -19,6 +19,7 @@ import java.io.Serializable;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import com.bitsofproof.supernode.common.ByteUtils;
@@ -26,7 +27,6 @@ import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.ScriptFormat;
 import com.bitsofproof.supernode.common.ValidationException;
 import com.bitsofproof.supernode.common.WireFormat;
-import com.google.protobuf.ByteString;
 
 public class Transaction implements Serializable, Cloneable
 {
@@ -39,13 +39,14 @@ public class Transaction implements Serializable, Cloneable
 	private List<TransactionInput> inputs;
 	private List<TransactionOutput> outputs;
 
-	// below are not part of wire format
+	// below are not part of P2P wire format
 	private String hash;
-	private String blockHash;
 	private boolean expired = false;
+	// below is not part of server messages, but populated in the client library
+	private String blockHash;
 	private String offendingTx;
 	private int height = 0;
-	private long blocktime;
+	private long blocktime = new Date ().getTime () / 1000;
 
 	public static Transaction createCoinbase (Address address, long value, int blockHeight) throws ValidationException
 	{
@@ -328,25 +329,9 @@ public class Transaction implements Serializable, Cloneable
 				builder.addOutputs (o.toProtobuf ());
 			}
 		}
-		if ( blockHash != null )
-		{
-			builder.setBlock (ByteString.copyFrom (new Hash (blockHash).toByteArray ()));
-		}
 		if ( expired )
 		{
 			builder.setExpired (true);
-		}
-		if ( height != 0 )
-		{
-			builder.setHeight (height);
-		}
-		if ( blocktime != 0 )
-		{
-			builder.setBlocktime ((int) blocktime);
-		}
-		if ( offendingTx != null )
-		{
-			builder.setOffendingTx (ByteString.copyFrom (new Hash (offendingTx).toByteArray ()));
 		}
 		return builder.build ();
 	}
@@ -373,25 +358,9 @@ public class Transaction implements Serializable, Cloneable
 				transaction.getOutputs ().add (TransactionOutput.fromProtobuf (o));
 			}
 		}
-		if ( pt.hasBlock () )
-		{
-			transaction.blockHash = new Hash (pt.getBlock ().toByteArray ()).toString ();
-		}
 		if ( pt.hasExpired () && pt.getExpired () )
 		{
 			transaction.expired = true;
-		}
-		if ( pt.hasHeight () )
-		{
-			transaction.height = pt.getHeight ();
-		}
-		if ( pt.hasBlocktime () )
-		{
-			transaction.blocktime = pt.getBlocktime ();
-		}
-		if ( pt.hasOffendingTx () )
-		{
-			transaction.offendingTx = new Hash (pt.getOffendingTx ().toByteArray ()).toString ();
 		}
 		return transaction;
 	}
