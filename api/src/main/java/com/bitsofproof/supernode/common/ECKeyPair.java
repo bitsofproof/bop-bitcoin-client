@@ -287,4 +287,21 @@ public class ECKeyPair implements Key
 			}
 		}
 	}
+
+	@Override
+	public int hashCode ()
+	{
+		return priv.hashCode ();
+	}
+
+	@Override
+	public boolean equals (Object obj)
+	{
+		if ( obj instanceof ECKeyPair )
+		{
+			return priv.compareTo (((ECKeyPair) obj).priv) == 0 && compressed == ((ECKeyPair) obj).compressed;
+		}
+		return false;
+	}
+
 }
