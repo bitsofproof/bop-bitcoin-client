@@ -132,6 +132,10 @@ public class Transaction implements Serializable, Cloneable
 
 	public String getHash ()
 	{
+		if ( hash == null )
+		{
+			computeHash ();
+		}
 		return hash;
 	}
 
@@ -362,6 +366,7 @@ public class Transaction implements Serializable, Cloneable
 		{
 			transaction.expired = true;
 		}
+		transaction.computeHash ();
 		return transaction;
 	}
 

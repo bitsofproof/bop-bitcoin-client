@@ -763,7 +763,6 @@ public class JMSServerConnector implements BCSAPI
 			if ( response != null )
 			{
 				Block b = Block.fromProtobuf (BCSAPIMessage.Block.parseFrom (response));
-				b.computeHash ();
 				return b;
 			}
 		}
@@ -807,7 +806,6 @@ public class JMSServerConnector implements BCSAPI
 			if ( response != null )
 			{
 				Block b = Block.fromProtobuf (BCSAPIMessage.Block.parseFrom (response));
-				b.computeHash ();
 				return b;
 			}
 		}
@@ -882,7 +880,6 @@ public class JMSServerConnector implements BCSAPI
 		Session session = null;
 		try
 		{
-			block.computeHash ();
 			log.trace ("send block " + block.getHash ());
 			session = connection.createSession (false, Session.AUTO_ACKNOWLEDGE);
 			MessageProducer blockProducer = session.createProducer (session.createTopic ("newBlock"));

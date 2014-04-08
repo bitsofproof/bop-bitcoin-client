@@ -87,16 +87,18 @@ public class Block implements Serializable, Cloneable
 		this.previousHash = previousHash;
 	}
 
-	public void computeHash ()
+	public void computeHash (boolean merkle)
 	{
-		computeMerkleRoot ();
+		if ( merkle )
+		{
+			merkleRoot = computeMerkleRoot ();
+		}
 
 		WireFormat.Writer writer = new WireFormat.Writer ();
 		toWireHeaderOnly (writer);
 		WireFormat.Reader reader = new WireFormat.Reader (writer.toByteArray ());
 
 		hash = reader.hash ().toString ();
-
 		if ( transactions != null )
 		{
 			for ( Transaction t : transactions )
@@ -106,7 +108,7 @@ public class Block implements Serializable, Cloneable
 		}
 	}
 
-	public void computeMerkleRoot ()
+	public String computeMerkleRoot ()
 	{
 		if ( transactions != null )
 		{
@@ -133,8 +135,9 @@ public class Block implements Serializable, Cloneable
 					}
 				}
 			};
-			merkleRoot = new Hash (aggregator.aggregate (tree)).toString ();
+			return new Hash (aggregator.aggregate (tree)).toString ();
 		}
+		return null;
 	}
 
 	public String getMerkleRoot ()
@@ -310,6 +313,7 @@ public class Block implements Serializable, Cloneable
 		{
 			block.height = pb.getHeight ();
 		}
+		block.computeHash (false);
 		return block;
 	}
 }
