@@ -530,7 +530,7 @@ public class JMSServerConnector implements BCSAPI
 	}
 
 	@Override
-	public void catchUp (List<String> inventory, final TrunkListener listener) throws BCSAPIException
+	public void catchUp (List<String> inventory, int limit, boolean headers, final TrunkListener listener) throws BCSAPIException
 	{
 		log.trace ("catchUp");
 		BytesMessage m;
@@ -541,10 +541,12 @@ public class JMSServerConnector implements BCSAPI
 			MessageProducer transactionRequestProducer = session.createProducer (session.createQueue ("catchUpRequest"));
 
 			m = session.createBytesMessage ();
-			BCSAPIMessage.Hash.Builder builder = BCSAPIMessage.Hash.newBuilder ();
+			BCSAPIMessage.CatchUpRequest.Builder builder = BCSAPIMessage.CatchUpRequest.newBuilder ();
+			builder.setLimit (limit);
+			builder.setHeaders (true);
 			for ( String hash : inventory )
 			{
-				builder.addHash (ByteString.copyFrom (new Hash (hash).toByteArray ()));
+				builder.addInventory (ByteString.copyFrom (new Hash (hash).toByteArray ()));
 			}
 			m.writeBytes (builder.build ().toByteArray ());
 			byte[] response = synchronousRequest (session, transactionRequestProducer, m);

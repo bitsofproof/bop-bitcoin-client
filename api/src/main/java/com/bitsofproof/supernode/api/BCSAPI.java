@@ -160,9 +160,14 @@ public interface BCSAPI
 	/**
 	 * Generate a trunk update to cach up from current inventory
 	 * 
-	 * @param hash
+	 * @param inventory
+	 *            of block hashes known, highest first
+	 * @param limit
+	 *            maximum number of blocks or header expected
+	 * @param headers
+	 *            indicate if headers or full blocks are expected
 	 * @param listener
 	 * @throws BCSAPIException
 	 */
-	public void catchUp (List<String> inventory, TrunkListener listener) throws BCSAPIException;
+	public void catchUp (List<String> inventory, int limit, boolean headers, TrunkListener listener) throws BCSAPIException;
 }

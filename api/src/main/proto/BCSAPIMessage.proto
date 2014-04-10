@@ -65,6 +65,12 @@ message Hash {
 	repeated bytes hash = 1;
 }
 
+message CatchUpRequest {
+	required uint32 limit = 1;
+	required bool headers = 2;
+	repeated bytes inventory = 3;
+}
+
 message TrunkUpdate {
 	repeated Block added = 1;
 }
