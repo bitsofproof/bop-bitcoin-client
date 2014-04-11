@@ -45,7 +45,10 @@ message Transaction {
 	required uint32 locktime = 2;   		// block number or time this is valid from
 	repeated TransactionInput inputs = 3;
 	repeated TransactionOutput outputs = 4;
-	optional bool expired = 5;			// transaction dropped out of mem pool
+	optional bytes block = 5;
+	optional uint32 height = 6;
+	optional uint32 blocktime = 7;
+	optional bool expired = 8;			// transaction dropped out of mem pool
 }
 
 // a block. 
