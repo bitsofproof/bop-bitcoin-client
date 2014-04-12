@@ -72,7 +72,7 @@
 
 	<repositories>
 		<repository>
-			<id>bitsofproof-internal</id>
+			<id>bitsofproof-public</id>
 			<name>bop internal repository</name>
 			<url>https://bitsofproof.com/nexus/content/groups/public</url>
 		</repository>
