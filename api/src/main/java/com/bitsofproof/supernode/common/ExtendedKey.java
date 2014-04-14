@@ -431,6 +431,12 @@ public class ExtendedKey
 	}
 
 	@Override
+	public String toString ()
+	{
+		return serialize (true);
+	}
+
+	@Override
 	public int hashCode ()
 	{
 		return master.hashCode ();
