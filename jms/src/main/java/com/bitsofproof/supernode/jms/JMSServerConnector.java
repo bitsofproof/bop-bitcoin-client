@@ -44,6 +44,7 @@ import com.bitsofproof.supernode.api.BCSAPI;
 import com.bitsofproof.supernode.api.BCSAPIException;
 import com.bitsofproof.supernode.api.BCSAPIMessage;
 import com.bitsofproof.supernode.api.Block;
+import com.bitsofproof.supernode.api.RejectListener;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
 import com.bitsofproof.supernode.api.TrunkListener;
@@ -916,5 +917,40 @@ public class JMSServerConnector implements BCSAPI
 			{
 			}
 		}
+	}
+
+	@Override
+	public void registerRejectListener (final RejectListener rejectListener) throws BCSAPIException
+	{
+		try
+		{
+			addTopicListener ("reject", rejectListener, new ByteArrayMessageListener ()
+			{
+				@Override
+				public void onMessage (byte[] body)
+				{
+					try
+					{
+						BCSAPIMessage.Reject reject = BCSAPIMessage.Reject.parseFrom (body);
+						rejectListener.rejected (reject.getCommand (), new Hash (reject.getHash ().toByteArray ()).toString (), reject.getReason (),
+								reject.getRejectCode ());
+					}
+					catch ( Exception e )
+					{
+						log.debug ("Transaction message error", e);
+					}
+				}
+			});
+		}
+		catch ( JMSException e )
+		{
+			throw new BCSAPIException (e);
+		}
+	}
+
+	@Override
+	public void removeRejectListener (RejectListener rejectListener)
+	{
+		removeTopicListener ("reject", rejectListener);
 	}
 }
