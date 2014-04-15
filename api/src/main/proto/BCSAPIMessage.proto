@@ -96,3 +96,11 @@ message AccountRequest
 	optional uint64 after = 3;
 	optional uint32 firstIndex = 4;
 }
+
+message Reject
+{
+	required string command = 1;
+	required string reason = 2;
+	required uint32 rejectCode = 3;
+	optional bytes hash = 4;
+}

@@ -89,6 +89,16 @@ public interface BCSAPI
 	public void sendTransaction (Transaction transaction) throws BCSAPIException;
 
 	/**
+	 * Register a reject message listener. Effective if connected to a peer with protocol version >= 70002 and in slave mode
+	 * 
+	 * @param rejectListener
+	 * @throws BCSAPIException
+	 */
+	public void registerRejectListener (RejectListener rejectListener) throws BCSAPIException;
+
+	public void removeRejectListener (RejectListener rejectListener);
+
+	/**
 	 * send a mined block
 	 * 
 	 * @param block
