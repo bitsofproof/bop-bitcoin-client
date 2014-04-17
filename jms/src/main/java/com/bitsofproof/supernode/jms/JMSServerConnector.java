@@ -225,7 +225,10 @@ public class JMSServerConnector implements BCSAPI
 	{
 		try
 		{
-			connection.close ();
+			if ( connection != null )
+			{
+				connection.close ();
+			}
 		}
 		catch ( JMSException e )
 		{
