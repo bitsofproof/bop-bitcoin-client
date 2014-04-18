@@ -133,4 +133,20 @@ public class TransactionOutput implements Serializable, Cloneable
 		output.setValue (po.getValue ());
 		return output;
 	}
+
+	@Override
+	public int hashCode ()
+	{
+		return txHash.hashCode ();
+	}
+
+	@Override
+	public boolean equals (Object obj)
+	{
+		if ( obj instanceof TransactionOutput )
+		{
+			return ((TransactionOutput) obj).txHash.equals (txHash) && ((TransactionOutput) obj).ix == ix;
+		}
+		return false;
+	}
 }
