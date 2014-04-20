@@ -48,7 +48,6 @@ import com.bitsofproof.supernode.api.RejectListener;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
 import com.bitsofproof.supernode.api.TrunkListener;
-import com.bitsofproof.supernode.common.BloomFilter.UpdateMode;
 import com.bitsofproof.supernode.common.ExtendedKey;
 import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.ValidationException;
@@ -327,7 +326,7 @@ public class JMSServerConnector implements BCSAPI
 	}
 
 	@Override
-	public void scanTransactionsForAddresses (Set<Address> addresses, UpdateMode mode, long after, TransactionListener listener) throws BCSAPIException
+	public void scanTransactionsForAddresses (Set<Address> addresses, long after, TransactionListener listener) throws BCSAPIException
 	{
 		List<byte[]> al = new ArrayList<> (addresses.size ());
 		for ( Address a : addresses )
@@ -340,11 +339,11 @@ public class JMSServerConnector implements BCSAPI
 			{
 			}
 		}
-		scanTransactions (al, mode, after, listener);
+		scanRequest (al, after, listener, "matchRequest");
 	}
 
 	@Override
-	public void scanUTXOForAddresses (Set<Address> addresses, UpdateMode mode, long after, TransactionListener listener) throws BCSAPIException
+	public void scanUTXOForAddresses (Set<Address> addresses, TransactionListener listener) throws BCSAPIException
 	{
 		List<byte[]> al = new ArrayList<> (addresses.size ());
 		for ( Address a : addresses )
@@ -357,17 +356,7 @@ public class JMSServerConnector implements BCSAPI
 			{
 			}
 		}
-		scanUTXO (al, mode, after, listener);
-	}
-
-	public void scanUTXO (Collection<byte[]> match, UpdateMode mode, long after, TransactionListener listener) throws BCSAPIException
-	{
-		scanRequest (match, mode, after, listener, "utxoMatchRequest");
-	}
-
-	public void scanTransactions (Collection<byte[]> match, UpdateMode mode, long after, final TransactionListener listener) throws BCSAPIException
-	{
-		scanRequest (match, mode, after, listener, "matchRequest");
+		scanRequest (al, 0, listener, "utxoMatchRequest");
 	}
 
 	@Override
@@ -376,7 +365,7 @@ public class JMSServerConnector implements BCSAPI
 		scanRequest (master, firstIndex, lookAhead, after, listener, "accountRequest");
 	}
 
-	private void scanRequest (Collection<byte[]> match, UpdateMode mode, long after, final TransactionListener listener, String requestQueue)
+	private void scanRequest (Collection<byte[]> match, long after, final TransactionListener listener, String requestQueue)
 			throws BCSAPIException
 	{
 		Session session = null;
@@ -387,7 +376,6 @@ public class JMSServerConnector implements BCSAPI
 
 			MessageProducer exactMatchProducer = session.createProducer (session.createQueue (requestQueue));
 			BCSAPIMessage.ExactMatchRequest.Builder builder = BCSAPIMessage.ExactMatchRequest.newBuilder ();
-			builder.setMode (mode.ordinal ());
 			for ( byte[] d : match )
 			{
 				builder.addMatch (ByteString.copyFrom (d));
