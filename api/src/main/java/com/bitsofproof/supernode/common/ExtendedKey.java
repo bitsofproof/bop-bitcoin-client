@@ -232,6 +232,13 @@ public class ExtendedKey
 		return new ExtendedKey (sub.getMaster (), sub.getChainCode (), sub.getDepth () + 1, getFingerPrint (), sequence);
 	}
 
+	public ExtendedKey getPrivateChild (int sequence) throws ValidationException
+	{
+		sequence |= 0x80000000;
+		ExtendedKey sub = generateKey (sequence);
+		return new ExtendedKey (sub.getMaster (), sub.getChainCode (), sub.getDepth () + 1, getFingerPrint (), sequence);
+	}
+
 	public ExtendedKey getReadOnly ()
 	{
 		return new ExtendedKey (new ECPublicKey (master.getPublic (), true), chainCode, depth, parent, sequence);
