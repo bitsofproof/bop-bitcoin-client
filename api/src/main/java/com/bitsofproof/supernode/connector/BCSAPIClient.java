@@ -42,9 +42,9 @@ import com.bitsofproof.supernode.common.ValidationException;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-public class BCSAPIConnector implements BCSAPI
+public class BCSAPIClient implements BCSAPI
 {
-	private static final Logger log = LoggerFactory.getLogger (BCSAPIConnector.class);
+	private static final Logger log = LoggerFactory.getLogger (BCSAPIClient.class);
 
 	private ConnectorFactory connectionFactory;
 	private Connector connection;

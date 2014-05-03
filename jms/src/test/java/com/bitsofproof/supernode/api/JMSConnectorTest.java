@@ -36,7 +36,7 @@ public class JMSConnectorTest
 {
 	private final Semaphore ready = new Semaphore (0);
 
-	private static JMSConnectorFactory factory = new JMSConnectorFactory ();
+	private static JMSConnectorFactory factory = new JMSConnectorFactory (null, null, null);
 	private static Connector connection;
 
 	@BeforeClass
