@@ -15,6 +15,13 @@ public class JMSConnectorFactory implements ConnectorFactory
 	private String brokerUrl;
 	private String clientId;
 
+	public JMSConnectorFactory (String username, String password, String brokerUrl)
+	{
+		this.username = username;
+		this.password = password;
+		this.brokerUrl = brokerUrl;
+	}
+
 	public JMSConnectorFactory (String username, String password, String brokerUrl, String clientId)
 	{
 		this.username = username;
@@ -27,7 +34,10 @@ public class JMSConnectorFactory implements ConnectorFactory
 	public Connector getConnector () throws ConnectorException
 	{
 		ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory (username, password, brokerUrl);
-		connectionFactory.setClientID (clientId);
+		if ( clientId != null )
+		{
+			connectionFactory.setClientID (clientId);
+		}
 		try
 		{
 			return new JMSConnector (connectionFactory);
