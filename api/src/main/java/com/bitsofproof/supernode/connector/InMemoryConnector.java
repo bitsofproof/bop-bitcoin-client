@@ -209,7 +209,7 @@ class InMemoryConnector implements Connector
 		}
 	}
 
-	private static class InMemoryProducer implements ConnectorProducer
+	private class InMemoryProducer implements ConnectorProducer
 	{
 		private final String name;
 		private final LinkedBlockingQueue<MessageWithDestination> queue;
@@ -223,7 +223,10 @@ class InMemoryConnector implements Connector
 		@Override
 		public void send (ConnectorMessage message) throws ConnectorException
 		{
-			queue.add (new MessageWithDestination (name, message));
+			if ( consumer.containsKey (name) )
+			{
+				queue.add (new MessageWithDestination (name, message));
+			}
 		}
 
 		@Override
