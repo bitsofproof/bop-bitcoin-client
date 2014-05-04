@@ -37,9 +37,7 @@ class InMemoryConnector implements Connector
 	@Override
 	public ConnectorSession createSession () throws ConnectorException
 	{
-		InMemorySession session = new InMemorySession ();
-		consumerExecutor.execute (session);
-		return session;
+		return new InMemorySession ();
 	}
 
 	private final ExecutorService consumerExecutor = Executors.newCachedThreadPool ();
@@ -291,7 +289,7 @@ class InMemoryConnector implements Connector
 
 	private class InMemorySession implements ConnectorSession, Runnable
 	{
-		private volatile boolean run = true;
+		private volatile boolean run = false;
 		private Set<InMemoryConsumer> consumerSet = Collections.synchronizedSet (new HashSet<InMemoryConsumer> ());
 
 		@Override
@@ -309,6 +307,11 @@ class InMemoryConnector implements Connector
 		@Override
 		public ConnectorConsumer createConsumer (ConnectorDestination destination) throws ConnectorException
 		{
+			if ( !run )
+			{
+				run = true;
+				consumerExecutor.execute (this);
+			}
 			InMemoryConsumer c = new InMemoryConsumer (destination.getName ());
 			consumerSet.add (c);
 			Set<InMemoryConsumer> cl;
@@ -384,7 +387,7 @@ class InMemoryConnector implements Connector
 					log.error ("Exception in connector consumer thread", e);
 					break;
 				}
-			} while ( md != null || run );
+			} while ( !queue.isEmpty () || run );
 			synchronized ( consumerSet )
 			{
 				for ( InMemoryConsumer c : consumerSet )
