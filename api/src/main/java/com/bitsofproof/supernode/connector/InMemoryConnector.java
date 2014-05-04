@@ -16,11 +16,11 @@
 package com.bitsofproof.supernode.connector;
 
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -38,14 +38,12 @@ class InMemoryConnector implements Connector
 	public ConnectorSession createSession () throws ConnectorException
 	{
 		InMemorySession session = new InMemorySession ();
-		sessions.add (session);
 		consumerExecutor.execute (session);
 		return session;
 	}
 
-	private final List<ConnectorSession> sessions = new ArrayList<ConnectorSession> ();
 	private final ExecutorService consumerExecutor = Executors.newCachedThreadPool ();
-	private final Map<String, List<InMemoryConsumer>> consumer = Collections.synchronizedMap (new HashMap<String, List<InMemoryConsumer>> ());
+	private final Map<String, Set<InMemoryConsumer>> consumer = Collections.synchronizedMap (new HashMap<String, Set<InMemoryConsumer>> ());
 	private final LinkedBlockingQueue<MessageWithDestination> queue = new LinkedBlockingQueue<> ();
 
 	private static class MessageWithDestination
@@ -138,6 +136,17 @@ class InMemoryConnector implements Connector
 	{
 		private final LinkedBlockingQueue<ConnectorMessage> queue = new LinkedBlockingQueue<> ();
 		private ConnectorListener listener;
+		private String name;
+
+		public InMemoryConsumer (String name)
+		{
+			this.name = name;
+		}
+
+		public String getName ()
+		{
+			return name;
+		}
 
 		public void putMessage (ConnectorMessage m) throws ConnectorException
 		{
@@ -283,6 +292,7 @@ class InMemoryConnector implements Connector
 	private class InMemorySession implements ConnectorSession, Runnable
 	{
 		private volatile boolean run = true;
+		private Set<InMemoryConsumer> consumerSet = Collections.synchronizedSet (new HashSet<InMemoryConsumer> ());
 
 		@Override
 		public ConnectorMessage createMessage () throws ConnectorException
@@ -299,14 +309,15 @@ class InMemoryConnector implements Connector
 		@Override
 		public ConnectorConsumer createConsumer (ConnectorDestination destination) throws ConnectorException
 		{
-			InMemoryConsumer c = new InMemoryConsumer ();
-			List<InMemoryConsumer> cl;
+			InMemoryConsumer c = new InMemoryConsumer (destination.getName ());
+			consumerSet.add (c);
+			Set<InMemoryConsumer> cl;
 			synchronized ( consumer )
 			{
 				cl = consumer.get (destination.getName ());
 				if ( cl == null )
 				{
-					cl = new ArrayList<InMemoryConsumer> ();
+					cl = new HashSet<InMemoryConsumer> ();
 					consumer.put (destination.getName (), cl);
 				}
 				cl.add (c);
@@ -343,7 +354,7 @@ class InMemoryConnector implements Connector
 					md = queue.poll (1, TimeUnit.SECONDS);
 					if ( md != null )
 					{
-						List<InMemoryConsumer> cl;
+						Set<InMemoryConsumer> cl;
 						cl = consumer.get (md.getDestination ());
 						if ( cl != null )
 						{
@@ -374,6 +385,24 @@ class InMemoryConnector implements Connector
 					break;
 				}
 			} while ( md != null || run );
+			synchronized ( consumerSet )
+			{
+				for ( InMemoryConsumer c : consumerSet )
+				{
+					synchronized ( consumer )
+					{
+						Set<InMemoryConsumer> cs = consumer.get (c.getName ());
+						if ( cs != null )
+						{
+							cs.remove (c);
+							if ( cs.isEmpty () )
+							{
+								consumer.remove (c.getName ());
+							}
+						}
+					}
+				}
+			}
 		}
 
 		@Override
