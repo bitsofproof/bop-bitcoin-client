@@ -363,20 +363,23 @@ class InMemoryConnector implements Connector
 						{
 							for ( InMemoryConsumer c : cl )
 							{
-								if ( c.getListener () != null )
+								synchronized ( c )
 								{
-									try
+									if ( c.getListener () != null )
 									{
-										c.getListener ().onMessage (md.getMessage ());
+										try
+										{
+											c.getListener ().onMessage (md.getMessage ());
+										}
+										catch ( Exception e )
+										{
+											log.error ("Uncaught exception in connector listener", e);
+										}
 									}
-									catch ( Exception e )
+									else
 									{
-										log.error ("Uncaught exception in connector listener", e);
+										c.putMessage (md.getMessage ());
 									}
-								}
-								else
-								{
-									c.putMessage (md.getMessage ());
 								}
 							}
 						}
