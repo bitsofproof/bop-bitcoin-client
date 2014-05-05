@@ -27,131 +27,47 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.bouncycastle.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class InMemoryConnector implements Connector
 {
-	private static final Logger log = LoggerFactory.getLogger (InMemoryConnector.class);
-
 	@Override
 	public ConnectorSession createSession () throws ConnectorException
 	{
 		return new InMemorySession ();
 	}
 
-	private final ExecutorService consumerExecutor = Executors.newCachedThreadPool ();
-	private final Map<String, Set<InMemoryConsumer>> consumer = Collections.synchronizedMap (new HashMap<String, Set<InMemoryConsumer>> ());
-	private final LinkedBlockingQueue<MessageWithDestination> queue = new LinkedBlockingQueue<> ();
+	private final ExecutorService sessionExecutor = Executors.newCachedThreadPool ();
+	private final Map<String, Set<InMemoryConsumer>> destinationConsumer = new HashMap<> ();
 
-	private static class MessageWithDestination
+	private class InMemoryConsumer implements ConnectorConsumer, Runnable
 	{
-		private final String destination;
-		private final ConnectorMessage message;
-
-		public String getDestination ()
-		{
-			return destination;
-		}
-
-		public ConnectorMessage getMessage ()
-		{
-			return message;
-		}
-
-		public MessageWithDestination (String destination, ConnectorMessage message)
-		{
-			this.destination = destination;
-			this.message = message;
-		}
-	}
-
-	public static class InMemoryConnectorDestination implements ConnectorDestination
-	{
-		private String name;
-
-		public InMemoryConnectorDestination (String name)
-		{
-			this.name = name;
-		}
-
-		@Override
-		public String getName ()
-		{
-			return name;
-		}
-
-	}
-
-	public static class InMemoryConnectorMessage implements ConnectorMessage
-	{
-		private byte[] payload;
-		private ConnectorDestination replyTo;
-		InMemorySession session;
-
-		public InMemoryConnectorMessage (InMemorySession inMemorySession)
-		{
-			this.session = inMemorySession;
-		}
-
-		@Override
-		public void setPayload (byte[] payload)
-		{
-			if ( payload == null )
-			{
-				this.payload = null;
-			}
-			else
-			{
-				this.payload = Arrays.clone (payload);
-			}
-		}
-
-		@Override
-		public byte[] getPayload ()
-		{
-			if ( payload == null )
-			{
-				return null;
-			}
-			return Arrays.clone (payload);
-		}
-
-		@Override
-		public ConnectorProducer getReplyProducer () throws ConnectorException
-		{
-			return session.createProducer (replyTo);
-		}
-
-		@Override
-		public void setReplyTo (ConnectorDestination replyTo)
-		{
-			this.replyTo = replyTo;
-		}
-	}
-
-	private static class InMemoryConsumer implements ConnectorConsumer
-	{
-		private final LinkedBlockingQueue<ConnectorMessage> queue = new LinkedBlockingQueue<> ();
+		private volatile boolean run = true;
 		private ConnectorListener listener;
-		private String name;
+		private ConnectorDestination destination;
+		private LinkedBlockingQueue<ConnectorMessage> queue = new LinkedBlockingQueue<> ();
 
-		public InMemoryConsumer (String name)
+		public InMemoryConsumer (ConnectorDestination destination)
 		{
-			this.name = name;
-		}
-
-		public String getName ()
-		{
-			return name;
+			synchronized ( destinationConsumer )
+			{
+				this.destination = destination;
+				try
+				{
+					if ( !destinationConsumer.containsKey (destination.getName ()) )
+					{
+						Set<InMemoryConsumer> consumer = new HashSet<> ();
+						consumer.add (this);
+						destinationConsumer.put (destination.getName (), consumer);
+					}
+				}
+				catch ( ConnectorException e )
+				{
+				}
+			}
 		}
 
 		public void putMessage (ConnectorMessage m) throws ConnectorException
 		{
-			if ( listener != null )
-			{
-				throw new ConnectorException ("Use either setListener or receive");
-			}
 			queue.offer (m);
 		}
 
@@ -159,11 +75,7 @@ class InMemoryConnector implements Connector
 		public void setMessageListener (ConnectorListener listener) throws ConnectorException
 		{
 			this.listener = listener;
-		}
-
-		public ConnectorListener getListener ()
-		{
-			return listener;
+			sessionExecutor.execute (this);
 		}
 
 		@Override
@@ -213,26 +125,59 @@ class InMemoryConnector implements Connector
 		@Override
 		public void close () throws ConnectorException
 		{
+			run = false;
+			putMessage (null);
+			synchronized ( destinationConsumer )
+			{
+				destinationConsumer.get (destination.getName ()).remove (this);
+				if ( destinationConsumer.get (destination.getName ()).isEmpty () )
+				{
+					destinationConsumer.remove (destination.getName ());
+				}
+			}
+		}
+
+		@Override
+		public void run ()
+		{
+			while ( run || !queue.isEmpty () )
+			{
+				try
+				{
+					ConnectorMessage m = queue.take ();
+					if ( m != null )
+					{
+						listener.onMessage (m);
+					}
+				}
+				catch ( InterruptedException e )
+				{
+				}
+			}
 		}
 	}
 
 	private class InMemoryProducer implements ConnectorProducer
 	{
-		private final String name;
-		private final LinkedBlockingQueue<MessageWithDestination> queue;
+		private final ConnectorDestination destination;
 
-		public InMemoryProducer (String name, LinkedBlockingQueue<MessageWithDestination> queue)
+		public InMemoryProducer (ConnectorDestination destination)
 		{
-			this.name = name;
-			this.queue = queue;
+			this.destination = destination;
 		}
 
 		@Override
 		public void send (ConnectorMessage message) throws ConnectorException
 		{
-			if ( consumer.containsKey (name) )
+			synchronized ( destinationConsumer )
 			{
-				queue.offer (new MessageWithDestination (name, message));
+				if ( destinationConsumer.containsKey (destination.getName ()) )
+				{
+					for ( InMemoryConsumer c : destinationConsumer.get (destination.getName ()) )
+					{
+						c.putMessage (message);
+					}
+				}
 			}
 		}
 
@@ -287,44 +232,68 @@ class InMemoryConnector implements Connector
 		}
 	}
 
-	private class InMemorySession implements ConnectorSession, Runnable
+	private class InMemorySession implements ConnectorSession
 	{
-		private volatile boolean run = false;
 		private Set<InMemoryConsumer> consumerSet = Collections.synchronizedSet (new HashSet<InMemoryConsumer> ());
+
+		public class InMemoryConnectorMessage implements ConnectorMessage
+		{
+			private byte[] payload;
+			private ConnectorDestination replyTo;
+
+			@Override
+			public void setPayload (byte[] payload)
+			{
+				if ( payload == null )
+				{
+					this.payload = null;
+				}
+				else
+				{
+					this.payload = Arrays.clone (payload);
+				}
+			}
+
+			@Override
+			public byte[] getPayload ()
+			{
+				if ( payload == null )
+				{
+					return null;
+				}
+				return Arrays.clone (payload);
+			}
+
+			@Override
+			public ConnectorProducer getReplyProducer () throws ConnectorException
+			{
+				return createProducer (replyTo);
+			}
+
+			@Override
+			public void setReplyTo (ConnectorDestination replyTo)
+			{
+				this.replyTo = replyTo;
+			}
+		}
 
 		@Override
 		public ConnectorMessage createMessage () throws ConnectorException
 		{
-			return new InMemoryConnectorMessage (this);
+			return new InMemoryConnectorMessage ();
 		}
 
 		@Override
 		public ConnectorProducer createProducer (ConnectorDestination destination) throws ConnectorException
 		{
-			return new InMemoryProducer (destination.getName (), queue);
+			return new InMemoryProducer (destination);
 		}
 
 		@Override
 		public ConnectorConsumer createConsumer (ConnectorDestination destination) throws ConnectorException
 		{
-			if ( !run )
-			{
-				run = true;
-				consumerExecutor.execute (this);
-			}
-			InMemoryConsumer c = new InMemoryConsumer (destination.getName ());
+			InMemoryConsumer c = new InMemoryConsumer (destination);
 			consumerSet.add (c);
-			Set<InMemoryConsumer> cl;
-			synchronized ( consumer )
-			{
-				cl = consumer.get (destination.getName ());
-				if ( cl == null )
-				{
-					cl = new HashSet<InMemoryConsumer> ();
-					consumer.put (destination.getName (), cl);
-				}
-				cl.add (c);
-			}
 			return c;
 		}
 
@@ -347,74 +316,12 @@ class InMemoryConnector implements Connector
 		}
 
 		@Override
-		public void run ()
+		public void close () throws ConnectorException
 		{
-			MessageWithDestination md = null;
-			do
+			for ( InMemoryConsumer c : consumerSet )
 			{
-				try
-				{
-					md = queue.poll (1, TimeUnit.SECONDS);
-					if ( md != null )
-					{
-						Set<InMemoryConsumer> cl;
-						cl = consumer.get (md.getDestination ());
-						if ( cl != null )
-						{
-							for ( InMemoryConsumer c : cl )
-							{
-								synchronized ( c )
-								{
-									if ( c.getListener () != null )
-									{
-										try
-										{
-											c.getListener ().onMessage (md.getMessage ());
-										}
-										catch ( Exception e )
-										{
-											log.error ("Uncaught exception in connector listener", e);
-										}
-									}
-									else
-									{
-										c.putMessage (md.getMessage ());
-									}
-								}
-							}
-						}
-					}
-				}
-				catch ( InterruptedException | ConnectorException e )
-				{
-					log.error ("Exception in connector consumer thread", e);
-					break;
-				}
-			} while ( !queue.isEmpty () || run );
-			synchronized ( consumerSet )
-			{
-				for ( InMemoryConsumer c : consumerSet )
-				{
-					synchronized ( consumer )
-					{
-						Set<InMemoryConsumer> cs = consumer.get (c.getName ());
-						if ( cs != null )
-						{
-							cs.remove (c);
-							if ( cs.isEmpty () )
-							{
-								consumer.remove (c.getName ());
-							}
-						}
-					}
-				}
+				c.close ();
 			}
-		}
-
-		@Override
-		public void close ()
-		{
-			run = false;
 		}
 	}
 
