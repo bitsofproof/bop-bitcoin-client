@@ -232,7 +232,7 @@ class InMemoryConnector implements Connector
 		{
 			if ( consumer.containsKey (name) )
 			{
-				queue.add (new MessageWithDestination (name, message));
+				queue.offer (new MessageWithDestination (name, message));
 			}
 		}
 
