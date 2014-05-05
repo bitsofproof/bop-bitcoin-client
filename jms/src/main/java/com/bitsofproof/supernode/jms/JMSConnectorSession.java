@@ -113,6 +113,10 @@ public class JMSConnectorSession implements ConnectorSession
 			{
 				return new JMSConnectorConsumer (session, session.createConsumer (((JMSConnectorTopic) destination).getDestination ()));
 			}
+			if ( destination instanceof JMSConnectorTemporaryQueue )
+			{
+				return new JMSConnectorConsumer (session, session.createConsumer (((JMSConnectorTemporaryQueue) destination).getDestination ()));
+			}
 			return null;
 		}
 		catch ( JMSException e )
