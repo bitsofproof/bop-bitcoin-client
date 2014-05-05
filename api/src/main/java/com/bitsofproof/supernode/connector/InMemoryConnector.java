@@ -39,6 +39,31 @@ class InMemoryConnector implements Connector
 	private final ExecutorService sessionExecutor = Executors.newCachedThreadPool ();
 	private final Map<String, Set<InMemoryConsumer>> destinationConsumer = new HashMap<> ();
 
+	private static final ConnectorMessage INVALID = new ConnectorMessage ()
+	{
+		@Override
+		public void setPayload (byte[] payload) throws ConnectorException
+		{
+		}
+
+		@Override
+		public byte[] getPayload () throws ConnectorException
+		{
+			return null;
+		}
+
+		@Override
+		public ConnectorProducer getReplyProducer () throws ConnectorException
+		{
+			return null;
+		}
+
+		@Override
+		public void setReplyTo (ConnectorDestination destination) throws ConnectorException
+		{
+		}
+	};
+
 	private class InMemoryConsumer implements ConnectorConsumer, Runnable
 	{
 		private volatile boolean run = true;
@@ -125,14 +150,20 @@ class InMemoryConnector implements Connector
 		@Override
 		public void close () throws ConnectorException
 		{
-			run = false;
-			putMessage (null);
+			if ( run )
+			{
+				run = false;
+				putMessage (INVALID);
+			}
 			synchronized ( destinationConsumer )
 			{
-				destinationConsumer.get (destination.getName ()).remove (this);
-				if ( destinationConsumer.get (destination.getName ()).isEmpty () )
+				if ( destinationConsumer.containsKey (destination.getName ()) )
 				{
-					destinationConsumer.remove (destination.getName ());
+					destinationConsumer.get (destination.getName ()).remove (this);
+					if ( destinationConsumer.get (destination.getName ()).isEmpty () )
+					{
+						destinationConsumer.remove (destination.getName ());
+					}
 				}
 			}
 		}
@@ -145,7 +176,7 @@ class InMemoryConnector implements Connector
 				try
 				{
 					ConnectorMessage m = queue.take ();
-					if ( m != null )
+					if ( m != INVALID )
 					{
 						listener.onMessage (m);
 					}
