@@ -55,6 +55,7 @@ public class JMSConnectorMessage implements ConnectorMessage
 			{
 				body = new byte[(int) message.getBodyLength ()];
 				message.readBytes (body);
+				message.reset ();
 			}
 		}
 		catch ( JMSException e )
