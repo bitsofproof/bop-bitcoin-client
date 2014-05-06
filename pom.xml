@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.bitsofproof</groupId>
 	<artifactId>bop-bitcoin-client</artifactId>
-	<version>3.5.2</version>
+	<version>3.5.3-SNAPSHOT</version>
 	<name>bop-bitcoin-client</name>
 	<description>The BOP Bitcoin Client Libraries</description>
 	<packaging>pom</packaging>
