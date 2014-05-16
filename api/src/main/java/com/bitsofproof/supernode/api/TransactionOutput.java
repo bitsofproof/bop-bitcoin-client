@@ -17,6 +17,7 @@ package com.bitsofproof.supernode.api;
 
 import java.io.Serializable;
 
+import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.ScriptFormat;
 import com.bitsofproof.supernode.common.WireFormat;
 import com.google.protobuf.ByteString;
@@ -25,17 +26,17 @@ public class TransactionOutput implements Serializable, Cloneable
 {
 	private static final long serialVersionUID = 3028618872354766234L;
 
-	private String txHash;
+	private Hash txHash;
 	private long ix;
 	private long value;
 	private byte[] script;
 
-	public String getTxHash ()
+	public Hash getTxHash ()
 	{
 		return txHash;
 	}
 
-	public void setTxHash (String txHash)
+	public void setTxHash (Hash txHash)
 	{
 		this.txHash = txHash;
 	}

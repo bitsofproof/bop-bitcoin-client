@@ -21,6 +21,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import com.bitsofproof.supernode.common.ByteUtils;
 import com.bitsofproof.supernode.common.Hash;
@@ -37,35 +38,32 @@ public class Transaction implements Serializable, Cloneable
 
 	private long lockTime = 0;
 
-	private List<TransactionInput> inputs;
-	private List<TransactionOutput> outputs;
+	private final List<TransactionInput> inputs;
+	private final List<TransactionOutput> outputs;
 
 	// below are not part of P2P wire format
 	private boolean expired = false;
-	private String blockHash;
+	private Hash blockHash;
 	private int height = 0;
 	private long blocktime = new Date ().getTime () / 1000;
 	// below is not part of server messages, but populated in the client library
-	private String hash;
-	private String offendingTx;
+	private Hash hash;
+	private Hash offendingTx;
 
 	public static Transaction createCoinbase (Address address, long value, int blockHeight) throws ValidationException
 	{
 		Transaction cb = new Transaction ();
 
-		cb.setInputs (new ArrayList<TransactionInput> ());
-		cb.setOutputs (new ArrayList<TransactionOutput> ());
-
 		TransactionOutput out = new TransactionOutput ();
 		out.setValue (value);
-		cb.getOutputs ().add (out);
+		cb.addOutput (out);
 
 		out.setScript (address.getAddressScript ());
 
 		TransactionInput in = new TransactionInput ();
-		in.setSourceHash (Hash.ZERO_HASH_STRING);
+		in.setSourceHash (Hash.ZERO_HASH);
 		in.setIx (0);
-		cb.getInputs ().add (in);
+		cb.addInput (in);
 
 		ScriptFormat.Writer writer = new ScriptFormat.Writer ();
 		writer.writeInt32 (blockHeight);
@@ -75,17 +73,23 @@ public class Transaction implements Serializable, Cloneable
 		return cb;
 	}
 
+	public Transaction ()
+	{
+		inputs = new ArrayList<> ();
+		outputs = new ArrayList<> ();
+	}
+
 	public long getVersion ()
 	{
 		return version;
 	}
 
-	public String getBlockHash ()
+	public Hash getBlockHash ()
 	{
 		return blockHash;
 	}
 
-	public void setBlockHash (String blockHash)
+	public void setBlockHash (Hash blockHash)
 	{
 		this.blockHash = blockHash;
 	}
@@ -120,7 +124,7 @@ public class Transaction implements Serializable, Cloneable
 		WireFormat.Writer writer = new WireFormat.Writer ();
 		toWire (writer);
 		WireFormat.Reader reader = new WireFormat.Reader (writer.toByteArray ());
-		hash = reader.hash ().toString ();
+		hash = reader.hash ();
 
 		long ix = 0;
 		for ( TransactionOutput o : outputs )
@@ -131,7 +135,7 @@ public class Transaction implements Serializable, Cloneable
 		}
 	}
 
-	public String getHash ()
+	public Hash getHash ()
 	{
 		if ( hash == null )
 		{
@@ -140,7 +144,7 @@ public class Transaction implements Serializable, Cloneable
 		return hash;
 	}
 
-	public void setHash (String hash)
+	public void setHash (Hash hash)
 	{
 		this.hash = hash;
 	}
@@ -150,9 +154,9 @@ public class Transaction implements Serializable, Cloneable
 		return inputs;
 	}
 
-	public void setInputs (List<TransactionInput> inputs)
+	public void addInput(TransactionInput input)
 	{
-		this.inputs = inputs;
+		inputs.add(input);
 	}
 
 	public List<TransactionOutput> getOutputs ()
@@ -160,9 +164,9 @@ public class Transaction implements Serializable, Cloneable
 		return outputs;
 	}
 
-	public void setOutputs (List<TransactionOutput> outputs)
+	public void addOutput(TransactionOutput output)
 	{
-		this.outputs = outputs;
+		outputs.add(output);
 	}
 
 	public boolean isExpired ()
@@ -175,12 +179,12 @@ public class Transaction implements Serializable, Cloneable
 		this.expired = expired;
 	}
 
-	public String getOffendingTx ()
+	public Hash getOffendingTx ()
 	{
 		return offendingTx;
 	}
 
-	public void setOffendingTx (String offendingTx)
+	public void setOffendingTx (Hash offendingTx)
 	{
 		this.offendingTx = offendingTx;
 	}
@@ -237,34 +241,24 @@ public class Transaction implements Serializable, Cloneable
 		long nin = reader.readVarInt ();
 		if ( nin > 0 )
 		{
-			t.inputs = new ArrayList<TransactionInput> ();
 			for ( int i = 0; i < nin; ++i )
 			{
-				t.inputs.add (TransactionInput.fromWire (reader));
+				t.addInput (TransactionInput.fromWire (reader));
 			}
-		}
-		else
-		{
-			t.inputs = null;
 		}
 
 		long nout = reader.readVarInt ();
 		if ( nout > 0 )
 		{
-			t.outputs = new ArrayList<TransactionOutput> ();
 			for ( long i = 0; i < nout; ++i )
 			{
-				t.outputs.add (TransactionOutput.fromWire (reader));
+				t.addOutput (TransactionOutput.fromWire (reader));
 			}
-		}
-		else
-		{
-			t.outputs = null;
 		}
 
 		t.lockTime = reader.readUint32 ();
 
-		t.hash = reader.hash (cursor, reader.getCursor () - cursor).toString ();
+		t.hash = reader.hash (cursor, reader.getCursor () - cursor);
 
 		return t;
 	}
@@ -289,18 +283,16 @@ public class Transaction implements Serializable, Cloneable
 		t.version = version;
 		if ( inputs != null )
 		{
-			t.inputs = new ArrayList<TransactionInput> (inputs.size ());
 			for ( TransactionInput i : inputs )
 			{
-				t.inputs.add (i.clone ());
+				t.addInput (i.clone ());
 			}
 		}
 		if ( outputs != null )
 		{
-			t.outputs = new ArrayList<TransactionOutput> (outputs.size ());
 			for ( TransactionOutput o : outputs )
 			{
-				t.outputs.add (o.clone ());
+				t.addOutput (o.clone ());
 			}
 		}
 
@@ -336,7 +328,7 @@ public class Transaction implements Serializable, Cloneable
 		}
 		if ( blockHash != null )
 		{
-			builder.setBlock (ByteString.copyFrom (new Hash (blockHash).toByteArray ()));
+			builder.setBlock (ByteString.copyFrom (blockHash.toByteArray ()));
 		}
 		if ( expired )
 		{
@@ -360,24 +352,22 @@ public class Transaction implements Serializable, Cloneable
 		transaction.setVersion (pt.getVersion ());
 		if ( pt.getInputsCount () > 0 )
 		{
-			transaction.setInputs (new ArrayList<TransactionInput> ());
 			for ( BCSAPIMessage.TransactionInput i : pt.getInputsList () )
 			{
-				transaction.getInputs ().add (TransactionInput.fromProtobuf (i));
+				transaction.addInput (TransactionInput.fromProtobuf (i));
 			}
 		}
 
 		if ( pt.getOutputsCount () > 0 )
 		{
-			transaction.setOutputs (new ArrayList<TransactionOutput> ());
 			for ( BCSAPIMessage.TransactionOutput o : pt.getOutputsList () )
 			{
-				transaction.getOutputs ().add (TransactionOutput.fromProtobuf (o));
+				transaction.addOutput (TransactionOutput.fromProtobuf (o));
 			}
 		}
 		if ( pt.hasBlock () )
 		{
-			transaction.blockHash = new Hash (pt.getBlock ().toByteArray ()).toString ();
+			transaction.blockHash = new Hash (pt.getBlock ().toByteArray ());
 		}
 		if ( pt.hasExpired () && pt.getExpired () )
 		{
@@ -409,7 +399,7 @@ public class Transaction implements Serializable, Cloneable
 
 		// implicit SIGHASH_ALL
 		int i = 0;
-		for ( TransactionInput in : copy.getInputs () )
+		for ( TransactionInput in : copy.inputs )
 		{
 			if ( i == inr )
 			{
@@ -424,9 +414,9 @@ public class Transaction implements Serializable, Cloneable
 
 		if ( (hashType & 0x1f) == ScriptFormat.SIGHASH_NONE )
 		{
-			copy.getOutputs ().clear ();
+			copy.outputs.clear ();
 			i = 0;
-			for ( TransactionInput in : copy.getInputs () )
+			for ( TransactionInput in : copy.inputs )
 			{
 				if ( i != inr )
 				{
@@ -438,23 +428,23 @@ public class Transaction implements Serializable, Cloneable
 		else if ( (hashType & 0x1f) == ScriptFormat.SIGHASH_SINGLE )
 		{
 			int onr = inr;
-			if ( onr >= copy.getOutputs ().size () )
+			if ( onr >= copy.outputs.size () )
 			{
 				// this is a Satoshi client bug.
 				// This case should throw an error but it instead retuns 1 that is not checked and interpreted as below
 				return ByteUtils.fromHex ("0100000000000000000000000000000000000000000000000000000000000000");
 			}
-			for ( i = copy.getOutputs ().size () - 1; i > onr; --i )
+			for ( i = copy.outputs.size () - 1; i > onr; --i )
 			{
-				copy.getOutputs ().remove (i);
+				copy.outputs.remove (i);
 			}
 			for ( i = 0; i < onr; ++i )
 			{
-				copy.getOutputs ().get (i).setScript (new byte[0]);
-				copy.getOutputs ().get (i).setValue (-1L);
+				copy.outputs.get (i).setScript (new byte[0]);
+				copy.outputs.get (i).setValue (-1L);
 			}
 			i = 0;
-			for ( TransactionInput in : copy.getInputs () )
+			for ( TransactionInput in : copy.inputs )
 			{
 				if ( i != inr )
 				{
@@ -465,9 +455,9 @@ public class Transaction implements Serializable, Cloneable
 		}
 		if ( (hashType & ScriptFormat.SIGHASH_ANYONECANPAY) != 0 )
 		{
-			List<TransactionInput> oneIn = new ArrayList<> ();
-			oneIn.add (copy.getInputs ().get (inr));
-			copy.setInputs (oneIn);
+			TransactionInput oneInput = copy.inputs.get (inr);
+			copy.inputs.clear ();
+			copy.addInput (oneInput);
 		}
 
 		WireFormat.Writer writer = new WireFormat.Writer ();
@@ -491,13 +481,21 @@ public class Transaction implements Serializable, Cloneable
 	@Override
 	public int hashCode ()
 	{
-		return hash.hashCode ();
+		return Objects.hash (hash);
 	}
 
 	@Override
 	public boolean equals (Object obj)
 	{
-		return hash.equals (((Transaction) obj).getHash ());
+		if ( this == obj )
+		{
+			return true;
+		}
+		if ( obj == null || getClass () != obj.getClass () )
+		{
+			return false;
+		}
+		final Transaction other = (Transaction) obj;
+		return Objects.equals (this.hash, other.hash);
 	}
-
 }

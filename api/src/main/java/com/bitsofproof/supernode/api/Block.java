@@ -31,10 +31,10 @@ public class Block implements Serializable, Cloneable
 {
 	private static final long serialVersionUID = 2846027750944390897L;
 
-	private String hash;
+	private Hash hash;
 	private long version;
-	private String previousHash;
-	private String merkleRoot;
+	private Hash previousHash;
+	private Hash merkleRoot;
 	private long createTime;
 	private long difficultyTarget;
 	private long nonce;
@@ -53,7 +53,7 @@ public class Block implements Serializable, Cloneable
 		c.nonce = nonce;
 		if ( transactions != null )
 		{
-			c.transactions = new ArrayList<Transaction> (transactions.size ());
+			c.transactions = new ArrayList<> (transactions.size ());
 			for ( Transaction t : transactions )
 			{
 				c.transactions.add (t.clone ());
@@ -62,7 +62,7 @@ public class Block implements Serializable, Cloneable
 		return c;
 	}
 
-	public String getHash ()
+	public Hash getHash ()
 	{
 		return hash;
 	}
@@ -77,12 +77,12 @@ public class Block implements Serializable, Cloneable
 		this.version = version;
 	}
 
-	public String getPreviousHash ()
+	public Hash getPreviousHash ()
 	{
 		return previousHash;
 	}
 
-	public void setPreviousHash (String previousHash)
+	public void setPreviousHash (Hash previousHash)
 	{
 		this.previousHash = previousHash;
 	}
@@ -98,7 +98,7 @@ public class Block implements Serializable, Cloneable
 		toWireHeaderOnly (writer);
 		WireFormat.Reader reader = new WireFormat.Reader (writer.toByteArray ());
 
-		hash = reader.hash ().toString ();
+		hash = reader.hash ();
 		if ( transactions != null )
 		{
 			for ( Transaction t : transactions )
@@ -108,15 +108,15 @@ public class Block implements Serializable, Cloneable
 		}
 	}
 
-	public String computeMerkleRoot ()
+	public Hash computeMerkleRoot ()
 	{
 		if ( transactions != null )
 		{
-			ArrayList<byte[]> tree = new ArrayList<byte[]> ();
+			ArrayList<byte[]> tree = new ArrayList<> ();
 			for ( Transaction t : transactions )
 			{
 				t.computeHash ();
-				tree.add (new Hash (t.getHash ()).toByteArray ());
+				tree.add (t.getHash ().toByteArray ());
 			}
 			BinaryAggregator<byte[]> aggregator = new BinaryAggregator<byte[]> ()
 			{
@@ -135,22 +135,22 @@ public class Block implements Serializable, Cloneable
 					}
 				}
 			};
-			return new Hash (aggregator.aggregate (tree)).toString ();
+			return new Hash (aggregator.aggregate (tree));
 		}
 		return null;
 	}
 
-	public String getMerkleRoot ()
+	public Hash getMerkleRoot ()
 	{
 		return merkleRoot;
 	}
 
-	public void setHash (String hash)
+	public void setHash (Hash hash)
 	{
 		this.hash = hash;
 	}
 
-	public void setMerkleRoot (String merkleRoot)
+	public void setMerkleRoot (Hash merkleRoot)
 	{
 		this.merkleRoot = merkleRoot;
 	}
@@ -208,8 +208,8 @@ public class Block implements Serializable, Cloneable
 	public void toWireHeaderOnly (WireFormat.Writer writer)
 	{
 		writer.writeUint32 (version);
-		writer.writeHash (new Hash (previousHash));
-		writer.writeHash (new Hash (merkleRoot));
+		writer.writeHash (previousHash);
+		writer.writeHash (merkleRoot);
 		writer.writeUint32 (createTime);
 		writer.writeUint32 (difficultyTarget);
 		writer.writeUint32 (nonce);
@@ -239,16 +239,16 @@ public class Block implements Serializable, Cloneable
 		int cursor = reader.getCursor ();
 		b.version = reader.readUint32 ();
 
-		b.previousHash = reader.readHash ().toString ();
-		b.merkleRoot = reader.readHash ().toString ();
+		b.previousHash = reader.readHash ();
+		b.merkleRoot = reader.readHash ();
 		b.createTime = reader.readUint32 ();
 		b.difficultyTarget = reader.readUint32 ();
 		b.nonce = reader.readUint32 ();
-		b.hash = reader.hash (cursor, 80).toString ();
+		b.hash = reader.hash (cursor, 80);
 		long nt = reader.readVarInt ();
 		if ( nt > 0 )
 		{
-			b.transactions = new ArrayList<Transaction> ();
+			b.transactions = new ArrayList<> ();
 			for ( long i = 0; i < nt; ++i )
 			{
 				b.transactions.add (Transaction.fromWire (reader));
@@ -276,8 +276,8 @@ public class Block implements Serializable, Cloneable
 		builder.setDifficulty ((int) difficultyTarget);
 		builder.setNonce ((int) nonce);
 		builder.setTimestamp ((int) createTime);
-		builder.setMerkleRoot (ByteString.copyFrom (new Hash (merkleRoot).toByteArray ()));
-		builder.setPreviousBlock (ByteString.copyFrom (new Hash (previousHash).toByteArray ()));
+		builder.setMerkleRoot (ByteString.copyFrom (merkleRoot.toByteArray ()));
+		builder.setPreviousBlock (ByteString.copyFrom (previousHash.toByteArray ()));
 		if ( transactions != null )
 		{
 			for ( Transaction t : transactions )
@@ -299,8 +299,8 @@ public class Block implements Serializable, Cloneable
 		block.setDifficultyTarget (pb.getDifficulty ());
 		block.setNonce (pb.getNonce ());
 		block.setCreateTime (pb.getTimestamp ());
-		block.setPreviousHash (new Hash (pb.getPreviousBlock ().toByteArray ()).toString ());
-		block.setMerkleRoot (new Hash (pb.getMerkleRoot ().toByteArray ()).toString ());
+		block.setPreviousHash (new Hash (pb.getPreviousBlock ().toByteArray ()));
+		block.setMerkleRoot (new Hash (pb.getMerkleRoot ().toByteArray ()));
 		if ( pb.getTransactionsCount () > 0 )
 		{
 			block.setTransactions (new ArrayList<Transaction> ());

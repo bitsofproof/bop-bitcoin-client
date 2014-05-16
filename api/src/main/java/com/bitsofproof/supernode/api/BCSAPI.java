@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.bitsofproof.supernode.common.ExtendedKey;
+import com.bitsofproof.supernode.common.Hash;
 
 /**
  * This is the API extensions to the bitsofproof supernode should build on
@@ -59,7 +60,7 @@ public interface BCSAPI
 	 * @return block header or null if hash is unknown
 	 * @throws BCSAPIException
 	 */
-	public Block getBlockHeader (String hash) throws BCSAPIException;
+	public Block getBlockHeader (Hash hash) throws BCSAPIException;
 
 	/**
 	 * get block for the hash
@@ -68,7 +69,7 @@ public interface BCSAPI
 	 * @return block or null if hash is unknown
 	 * @throws BCSAPIException
 	 */
-	public Block getBlock (String hash) throws BCSAPIException;
+	public Block getBlock (Hash hash) throws BCSAPIException;
 
 	/**
 	 * get the transaction identified by the hash on the trunk
@@ -77,7 +78,7 @@ public interface BCSAPI
 	 * @return transaction or null if no transaction with that hash on the trunk
 	 * @throws BCSAPIException
 	 */
-	public Transaction getTransaction (String hash) throws BCSAPIException;
+	public Transaction getTransaction (Hash hash) throws BCSAPIException;
 
 	/**
 	 * send a signed transaction
@@ -178,5 +179,5 @@ public interface BCSAPI
 	 * @param listener
 	 * @throws BCSAPIException
 	 */
-	public void catchUp (List<String> inventory, int limit, boolean headers, TrunkListener listener) throws BCSAPIException;
+	public void catchUp (List<Hash> inventory, int limit, boolean headers, TrunkListener listener) throws BCSAPIException;
 }

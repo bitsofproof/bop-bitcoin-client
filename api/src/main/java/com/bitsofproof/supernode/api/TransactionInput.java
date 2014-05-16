@@ -25,17 +25,17 @@ public class TransactionInput implements Serializable, Cloneable
 {
 	private static final long serialVersionUID = -7019826355856117874L;
 
-	private String sourceHash;
+	private Hash sourceHash;
 	private long ix;
 	private long sequence = 0xFFFFFFFFL;
 	private byte[] script;
 
-	public String getSourceHash ()
+	public Hash getSourceHash ()
 	{
 		return sourceHash;
 	}
 
-	public void setSourceHash (String sourceHash)
+	public void setSourceHash (Hash sourceHash)
 	{
 		this.sourceHash = sourceHash;
 	}
@@ -86,9 +86,9 @@ public class TransactionInput implements Serializable, Cloneable
 
 	public void toWire (WireFormat.Writer writer)
 	{
-		if ( sourceHash != null && !sourceHash.equals (Hash.ZERO_HASH.toString ()) )
+		if ( sourceHash != null && !sourceHash.equals (Hash.ZERO_HASH) )
 		{
-			writer.writeHash (new Hash (sourceHash));
+			writer.writeHash (sourceHash);
 			writer.writeUint32 (ix);
 		}
 		else
@@ -104,7 +104,7 @@ public class TransactionInput implements Serializable, Cloneable
 	{
 		TransactionInput i = new TransactionInput ();
 
-		i.sourceHash = reader.readHash ().toString ();
+		i.sourceHash = reader.readHash ();
 		i.ix = reader.readUint32 ();
 		i.script = reader.readVarBytes ();
 		i.sequence = reader.readUint32 ();
@@ -134,7 +134,7 @@ public class TransactionInput implements Serializable, Cloneable
 		BCSAPIMessage.TransactionInput.Builder builder = BCSAPIMessage.TransactionInput.newBuilder ();
 		builder.setScript (ByteString.copyFrom (script));
 		builder.setSequence ((int) sequence);
-		builder.setSource (ByteString.copyFrom (new Hash (sourceHash).toByteArray ()));
+		builder.setSource (ByteString.copyFrom (sourceHash.toByteArray ()));
 		builder.setSourceix ((int) ix);
 		return builder.build ();
 	}
@@ -145,7 +145,7 @@ public class TransactionInput implements Serializable, Cloneable
 		input.setIx (pi.getSourceix ());
 		input.setScript (pi.getScript ().toByteArray ());
 		input.setSequence (pi.getSequence ());
-		input.setSourceHash (new Hash (pi.getSource ().toByteArray ()).toString ());
+		input.setSourceHash (new Hash (pi.getSource ().toByteArray ()));
 		return input;
 	}
 }
