@@ -15,7 +15,7 @@
  */
 package com.bitsofproof.supernode.connector;
 
-public interface ConnectorConsumer
+public interface ConnectorConsumer extends AutoCloseable
 {
 	public void setMessageListener (ConnectorListener listener) throws ConnectorException;
 

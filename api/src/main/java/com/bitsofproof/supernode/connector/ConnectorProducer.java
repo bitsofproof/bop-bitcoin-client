@@ -15,7 +15,7 @@
  */
 package com.bitsofproof.supernode.connector;
 
-public interface ConnectorProducer
+public interface ConnectorProducer extends AutoCloseable
 {
 	public void send (ConnectorMessage message) throws ConnectorException;
 

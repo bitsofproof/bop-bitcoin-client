@@ -210,12 +210,10 @@ public class BCSAPIClient implements BCSAPI
 	@Override
 	public long ping (long nonce) throws BCSAPIException
 	{
-		ConnectorSession session = null;
-		try
+		try (ConnectorSession session = connection.createSession ())
 		{
 			log.trace ("ping " + nonce);
 
-			session = connection.createSession ();
 			ConnectorMessage m = session.createMessage ();
 			BCSAPIMessage.Ping.Builder builder = BCSAPIMessage.Ping.newBuilder ();
 			builder.setNonce (nonce);
@@ -236,19 +234,7 @@ public class BCSAPIClient implements BCSAPI
 		{
 			throw new BCSAPIException (e);
 		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
-		}
+
 		return 0;
 	}
 
@@ -340,10 +326,8 @@ public class BCSAPIClient implements BCSAPI
 	private void scanRequest (Collection<byte[]> match, long after, final TransactionListener listener, String requestQueue)
 			throws BCSAPIException
 	{
-		ConnectorSession session = null;
-		try
+		try (ConnectorSession session = connection.createSession ())
 		{
-			session = connection.createSession ();
 			ConnectorMessage m = session.createMessage ();
 
 			ConnectorProducer exactMatchProducer = session.createProducer (session.createQueue (requestQueue));
@@ -396,19 +380,6 @@ public class BCSAPIClient implements BCSAPI
 		{
 			throw new BCSAPIException (e);
 		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
-		}
 	}
 
 	private void scanRequest (ExtendedKey master, int firstIndex, int lookAhead, long after, final TransactionListener listener, String request)
@@ -418,10 +389,8 @@ public class BCSAPIClient implements BCSAPI
 		{
 			master = master.getReadOnly ();
 		}
-		ConnectorSession session = null;
-		try
+		try (ConnectorSession session = connection.createSession ())
 		{
-			session = connection.createSession ();
 			ConnectorMessage m = session.createMessage ();
 
 			ConnectorProducer scanAccountProducer = session.createProducer (session.createQueue (request));
@@ -470,19 +439,6 @@ public class BCSAPIClient implements BCSAPI
 		{
 			throw new BCSAPIException (e);
 		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
-		}
 	}
 
 	@Override
@@ -490,10 +446,8 @@ public class BCSAPIClient implements BCSAPI
 	{
 		log.trace ("catchUp");
 		ConnectorMessage m;
-		ConnectorSession session = null;
-		try
+		try (ConnectorSession session = connection.createSession ())
 		{
-			session = connection.createSession ();
 			ConnectorProducer transactionRequestProducer = session.createProducer (session.createQueue ("catchUpRequest"));
 
 			m = session.createMessage ();
@@ -520,19 +474,6 @@ public class BCSAPIClient implements BCSAPI
 		catch ( ConnectorException | InvalidProtocolBufferException e )
 		{
 			throw new BCSAPIException (e);
-		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
 		}
 	}
 
@@ -613,21 +554,23 @@ public class BCSAPIClient implements BCSAPI
 	private byte[] synchronousRequest (ConnectorSession session, ConnectorProducer producer, ConnectorMessage m) throws BCSAPIException
 	{
 		ConnectorTemporaryQueue answerQueue = null;
-		ConnectorConsumer consumer = null;
 		try
 		{
 			answerQueue = session.createTemporaryQueue ();
 			m.setReplyTo (answerQueue);
-			consumer = session.createConsumer (answerQueue);
-			producer.send (m);
-			ConnectorMessage reply = consumer.receive (timeout);
-			if ( reply == null )
+
+			try (ConnectorConsumer consumer = session.createConsumer (answerQueue))
 			{
-				throw new BCSAPIException ("timeout");
+				producer.send (m);
+				ConnectorMessage reply = consumer.receive (timeout);
+				if ( reply == null )
+				{
+					throw new BCSAPIException ("timeout");
+				}
+				return reply.getPayload ();
 			}
-			return reply.getPayload ();
 		}
-		catch ( ConnectorException e )
+		catch (ConnectorException e)
 		{
 			throw new BCSAPIException (e);
 		}
@@ -635,16 +578,12 @@ public class BCSAPIClient implements BCSAPI
 		{
 			try
 			{
-				if ( consumer != null )
-				{
-					consumer.close ();
-				}
-				if (answerQueue != null)
+				if ( answerQueue != null )
 				{
 					answerQueue.delete ();
 				}
 			}
-			catch ( ConnectorException e )
+			catch (ConnectorException e)
 			{
 			}
 		}
@@ -655,10 +594,8 @@ public class BCSAPIClient implements BCSAPI
 	{
 		log.trace ("get transaction " + hash);
 		ConnectorMessage m;
-		ConnectorSession session = null;
-		try
+		try (ConnectorSession session = connection.createSession ())
 		{
-			session = connection.createSession ();
 			ConnectorProducer transactionRequestProducer = session.createProducer (session.createQueue ("transactionRequest"));
 
 			m = session.createMessage ();
@@ -678,31 +615,17 @@ public class BCSAPIClient implements BCSAPI
 		{
 			throw new BCSAPIException (e);
 		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
-		}
+
 		return null;
 	}
 
 	@Override
 	public Block getBlock (Hash hash) throws BCSAPIException
 	{
-		ConnectorSession session = null;
-		try
+		try (ConnectorSession session = connection.createSession ())
 		{
 			log.trace ("get block " + hash);
 
-			session = connection.createSession ();
 			ConnectorProducer blockRequestProducer = session.createProducer (session.createQueue ("blockRequest"));
 
 			ConnectorMessage m = session.createMessage ();
@@ -719,31 +642,17 @@ public class BCSAPIClient implements BCSAPI
 		{
 			throw new BCSAPIException (e);
 		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
-		}
+
 		return null;
 	}
 
 	@Override
 	public Block getBlockHeader (Hash hash) throws BCSAPIException
 	{
-		ConnectorSession session = null;
-		try
+		try (ConnectorSession session = connection.createSession ())
 		{
 			log.trace ("get block header" + hash);
 
-			session = connection.createSession ();
 			ConnectorProducer blockHeaderRequestProducer = session.createProducer (session.createQueue ("headerRequest"));
 
 			ConnectorMessage m = session.createMessage ();
@@ -760,32 +669,18 @@ public class BCSAPIClient implements BCSAPI
 		{
 			throw new BCSAPIException (e);
 		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
-		}
+
 		return null;
 	}
 
 	@Override
 	public void sendTransaction (Transaction transaction) throws BCSAPIException
 	{
-		ConnectorSession session = null;
-		try
+		transaction.computeHash ();
+		try (ConnectorSession session = connection.createSession ())
 		{
-			transaction.computeHash ();
 			log.trace ("send transaction " + transaction.getHash ());
 
-			session = connection.createSession ();
 			ConnectorProducer transactionProducer = session.createProducer (session.createTopic ("newTransaction"));
 
 			ConnectorMessage m = session.createMessage ();
@@ -808,29 +703,14 @@ public class BCSAPIClient implements BCSAPI
 		{
 			throw new BCSAPIException (e);
 		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
-		}
 	}
 
 	@Override
 	public void sendBlock (Block block) throws BCSAPIException
 	{
-		ConnectorSession session = null;
-		try
+		try (ConnectorSession session = connection.createSession ())
 		{
 			log.trace ("send block " + block.getHash ());
-			session = connection.createSession ();
 			ConnectorProducer blockProducer = session.createProducer (session.createTopic ("newBlock"));
 
 			ConnectorMessage m = session.createMessage ();
@@ -852,19 +732,6 @@ public class BCSAPIClient implements BCSAPI
 		catch ( ConnectorException e )
 		{
 			throw new BCSAPIException (e);
-		}
-		finally
-		{
-			try
-			{
-				if (session != null)
-				{
-					session.close ();
-				}
-			}
-			catch ( ConnectorException e )
-			{
-			}
 		}
 	}
 
