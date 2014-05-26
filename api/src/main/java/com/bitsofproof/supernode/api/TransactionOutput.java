@@ -16,6 +16,8 @@
 package com.bitsofproof.supernode.api;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Objects;
 
 import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.ScriptFormat;
@@ -30,6 +32,23 @@ public class TransactionOutput implements Serializable, Cloneable
 	private long ix;
 	private long value;
 	private byte[] script;
+
+	public TransactionOutput ()
+	{
+	}
+
+	public TransactionOutput (long value, byte[] script)
+	{
+		this.value = value;
+		this.setScript (script);
+	}
+
+	public TransactionOutput (Hash txHash, long ix, long value, byte[] script)
+	{
+		this(value, script);
+		this.txHash = txHash;
+		this.ix = ix;
+	}
 
 	public Hash getTxHash ()
 	{
@@ -65,9 +84,7 @@ public class TransactionOutput implements Serializable, Cloneable
 	{
 		if ( script != null )
 		{
-			byte[] copy = new byte[script.length];
-			System.arraycopy (script, 0, copy, 0, script.length);
-			return copy;
+			return Arrays.copyOf(script, script.length);
 		}
 		return null;
 	}
@@ -76,8 +93,7 @@ public class TransactionOutput implements Serializable, Cloneable
 	{
 		if ( script != null )
 		{
-			this.script = new byte[script.length];
-			System.arraycopy (script, 0, this.script, 0, script.length);
+			this.script = Arrays.copyOf(script, script.length);
 		}
 		else
 		{
@@ -93,10 +109,8 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	public static TransactionOutput fromWire (WireFormat.Reader reader)
 	{
-		TransactionOutput o = new TransactionOutput ();
-		o.value = reader.readUint64 ();
-		o.script = reader.readVarBytes ();
-		return o;
+		return new TransactionOutput(reader.readUint64(),
+		                             reader.readVarBytes ());
 	}
 
 	public Address getOutputAddress ()
@@ -111,8 +125,7 @@ public class TransactionOutput implements Serializable, Cloneable
 		o.value = value;
 		if ( script != null )
 		{
-			o.script = new byte[script.length];
-			System.arraycopy (script, 0, o.script, 0, script.length);
+			o.script = Arrays.copyOf (script, script.length);
 		}
 		o.ix = ix;
 		o.txHash = txHash;
@@ -129,25 +142,28 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	public static TransactionOutput fromProtobuf (BCSAPIMessage.TransactionOutput po)
 	{
-		TransactionOutput output = new TransactionOutput ();
-		output.setScript (po.getScript ().toByteArray ());
-		output.setValue (po.getValue ());
-		return output;
+		return new TransactionOutput (po.getValue(),
+		                              po.getScript ().toByteArray ());
 	}
 
 	@Override
 	public int hashCode ()
 	{
-		return txHash.hashCode ();
+		return Objects.hash (txHash, ix);
 	}
 
 	@Override
 	public boolean equals (Object obj)
 	{
-		if ( obj instanceof TransactionOutput )
+		if ( this == obj )
 		{
-			return ((TransactionOutput) obj).txHash.equals (txHash) && ((TransactionOutput) obj).ix == ix;
+			return true;
 		}
-		return false;
+		if ( obj == null || getClass () != obj.getClass () )
+		{
+			return false;
+		}
+		final TransactionOutput other = (TransactionOutput) obj;
+		return Objects.equals (this.txHash, other.txHash) && Objects.equals (this.ix, other.ix);
 	}
 }

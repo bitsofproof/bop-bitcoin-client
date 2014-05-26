@@ -38,8 +38,8 @@ public class Transaction implements Serializable, Cloneable
 
 	private long lockTime = 0;
 
-	private final List<TransactionInput> inputs;
-	private final List<TransactionOutput> outputs;
+	private List<TransactionInput> inputs;
+	private List<TransactionOutput> outputs;
 
 	// below are not part of P2P wire format
 	private boolean expired = false;
@@ -60,14 +60,10 @@ public class Transaction implements Serializable, Cloneable
 
 		out.setScript (address.getAddressScript ());
 
-		TransactionInput in = new TransactionInput ();
-		in.setSourceHash (Hash.ZERO_HASH);
-		in.setIx (0);
+		TransactionInput in = new TransactionInput (Hash.ZERO_HASH, 0, ScriptFormat.writer ()
+		                                                                           .writeInt32 (blockHeight)
+		                                                                           .toByteArray ());
 		cb.addInput (in);
-
-		ScriptFormat.Writer writer = new ScriptFormat.Writer ();
-		writer.writeInt32 (blockHeight);
-		in.setScript (writer.toByteArray ());
 
 		cb.computeHash ();
 		return cb;
@@ -154,6 +150,11 @@ public class Transaction implements Serializable, Cloneable
 		return inputs;
 	}
 
+	public TransactionInput getInput(int i)
+	{
+		return inputs.get(i);
+	}
+
 	public void addInput(TransactionInput input)
 	{
 		inputs.add(input);
@@ -162,6 +163,11 @@ public class Transaction implements Serializable, Cloneable
 	public List<TransactionOutput> getOutputs ()
 	{
 		return outputs;
+	}
+
+	public TransactionOutput getOutput(int i)
+	{
+		return outputs.get(i);
 	}
 
 	public void addOutput(TransactionOutput output)
@@ -202,30 +208,16 @@ public class Transaction implements Serializable, Cloneable
 	public void toWire (WireFormat.Writer writer)
 	{
 		writer.writeUint32 (version);
-		if ( inputs != null )
+		writer.writeVarInt (inputs.size ());
+		for ( TransactionInput input : inputs )
 		{
-			writer.writeVarInt (inputs.size ());
-			for ( TransactionInput input : inputs )
-			{
-				input.toWire (writer);
-			}
-		}
-		else
-		{
-			writer.writeVarInt (0);
+			input.toWire (writer);
 		}
 
-		if ( outputs != null )
+		writer.writeVarInt (outputs.size ());
+		for ( TransactionOutput output : outputs )
 		{
-			writer.writeVarInt (outputs.size ());
-			for ( TransactionOutput output : outputs )
-			{
-				output.toWire (writer);
-			}
-		}
-		else
-		{
-			writer.writeVarInt (0);
+			output.toWire (writer);
 		}
 
 		writer.writeUint32 (lockTime);
@@ -239,26 +231,26 @@ public class Transaction implements Serializable, Cloneable
 
 		t.version = reader.readUint32 ();
 		long nin = reader.readVarInt ();
-		if ( nin > 0 )
+		for ( int i = 0; i < nin; ++i )
 		{
-			for ( int i = 0; i < nin; ++i )
-			{
-				t.addInput (TransactionInput.fromWire (reader));
-			}
+			t.addInput (TransactionInput.fromWire (reader));
 		}
 
 		long nout = reader.readVarInt ();
-		if ( nout > 0 )
+		for ( long i = 0; i < nout; ++i )
 		{
-			for ( long i = 0; i < nout; ++i )
-			{
-				t.addOutput (TransactionOutput.fromWire (reader));
-			}
+			t.addOutput (TransactionOutput.fromWire (reader));
 		}
 
 		t.lockTime = reader.readUint32 ();
-
 		t.hash = reader.hash (cursor, reader.getCursor () - cursor);
+
+		for ( int i = 0; i < t.getOutputs().size (); i++)
+		{
+			TransactionOutput output = t.getOutputs ().get(i);
+			output.setTxHash (t.hash);
+			output.setIx (i);
+		}
 
 		return t;
 	}
@@ -279,30 +271,17 @@ public class Transaction implements Serializable, Cloneable
 	public Transaction clone () throws CloneNotSupportedException
 	{
 		Transaction t = (Transaction) super.clone ();
+		t.inputs = new ArrayList<>();
+		t.outputs = new ArrayList<>();
 
-		t.version = version;
-		if ( inputs != null )
+		for ( TransactionInput i : inputs )
 		{
-			for ( TransactionInput i : inputs )
-			{
-				t.addInput (i.clone ());
-			}
+			t.addInput (i.clone ());
 		}
-		if ( outputs != null )
+		for ( TransactionOutput o : outputs )
 		{
-			for ( TransactionOutput o : outputs )
-			{
-				t.addOutput (o.clone ());
-			}
+			t.addOutput (o.clone ());
 		}
-
-		t.lockTime = lockTime;
-
-		t.hash = hash;
-
-		t.blockHash = blockHash;
-
-		t.blocktime = blocktime;
 
 		return t;
 	}
@@ -312,19 +291,13 @@ public class Transaction implements Serializable, Cloneable
 		BCSAPIMessage.Transaction.Builder builder = BCSAPIMessage.Transaction.newBuilder ();
 		builder.setLocktime ((int) lockTime);
 		builder.setVersion ((int) version);
-		if ( inputs != null )
+		for ( TransactionInput i : inputs )
 		{
-			for ( TransactionInput i : inputs )
-			{
-				builder.addInputs (i.toProtobuf ());
-			}
+			builder.addInputs (i.toProtobuf ());
 		}
-		if ( outputs != null && outputs.size () > 0 )
+		for ( TransactionOutput o : outputs )
 		{
-			for ( TransactionOutput o : outputs )
-			{
-				builder.addOutputs (o.toProtobuf ());
-			}
+			builder.addOutputs (o.toProtobuf ());
 		}
 		if ( blockHash != null )
 		{

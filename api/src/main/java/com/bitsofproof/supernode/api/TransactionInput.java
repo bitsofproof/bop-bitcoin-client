@@ -16,6 +16,7 @@
 package com.bitsofproof.supernode.api;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.WireFormat;
@@ -29,6 +30,23 @@ public class TransactionInput implements Serializable, Cloneable
 	private long ix;
 	private long sequence = 0xFFFFFFFFL;
 	private byte[] script;
+
+	public TransactionInput ()
+	{
+	}
+
+	public TransactionInput (Hash sourceHash, long ix, byte[] script)
+	{
+		this.sourceHash = sourceHash;
+		this.ix = ix;
+		this.setScript(script);
+	}
+
+	public TransactionInput (Hash sourceHash, long ix, byte[] script, long sequence)
+	{
+		this(sourceHash, ix, script);
+		this.sequence = sequence;
+	}
 
 	public Hash getSourceHash ()
 	{
@@ -64,9 +82,7 @@ public class TransactionInput implements Serializable, Cloneable
 	{
 		if ( script != null )
 		{
-			byte[] copy = new byte[script.length];
-			System.arraycopy (script, 0, copy, 0, script.length);
-			return copy;
+			return Arrays.copyOf (script, script.length);
 		}
 		return null;
 	}
@@ -75,8 +91,7 @@ public class TransactionInput implements Serializable, Cloneable
 	{
 		if ( script != null )
 		{
-			this.script = new byte[script.length];
-			System.arraycopy (script, 0, this.script, 0, script.length);
+			this.script = Arrays.copyOf(script, script.length);
 		}
 		else
 		{
@@ -102,14 +117,10 @@ public class TransactionInput implements Serializable, Cloneable
 
 	public static TransactionInput fromWire (WireFormat.Reader reader)
 	{
-		TransactionInput i = new TransactionInput ();
-
-		i.sourceHash = reader.readHash ();
-		i.ix = reader.readUint32 ();
-		i.script = reader.readVarBytes ();
-		i.sequence = reader.readUint32 ();
-
-		return i;
+		return new TransactionInput (reader.readHash (),
+		                             reader.readUint32(),
+		                             reader.readVarBytes (),
+		                             reader.readUint32 ());
 	}
 
 	@Override
@@ -122,8 +133,7 @@ public class TransactionInput implements Serializable, Cloneable
 		i.sequence = sequence;
 		if ( script != null )
 		{
-			i.script = new byte[script.length];
-			System.arraycopy (script, 0, i.script, 0, script.length);
+			i.script = Arrays.copyOf(script, script.length);
 		}
 
 		return i;
@@ -141,11 +151,9 @@ public class TransactionInput implements Serializable, Cloneable
 
 	public static TransactionInput fromProtobuf (BCSAPIMessage.TransactionInput pi)
 	{
-		TransactionInput input = new TransactionInput ();
-		input.setIx (pi.getSourceix ());
-		input.setScript (pi.getScript ().toByteArray ());
-		input.setSequence (pi.getSequence ());
-		input.setSourceHash (new Hash (pi.getSource ().toByteArray ()));
-		return input;
+		return new TransactionInput (new Hash (pi.getSource ().toByteArray ()),
+		                             pi.getSourceix (),
+		                             pi.getScript ().toByteArray (),
+		                             pi.getSequence ());
 	}
 }

@@ -179,6 +179,21 @@ public class ScriptFormat
 		}
 	}
 
+	public static Writer writer()
+	{
+		return new Writer();
+	}
+
+	public static Writer writer(int bufLen)
+	{
+		return new Writer(new ByteArrayOutputStream (bufLen));
+	}
+
+	public static Reader reader(byte[] s)
+	{
+		return new Reader(s);
+	}
+
 	public static class Reader
 	{
 		private final byte[] bytes;
@@ -240,22 +255,23 @@ public class ScriptFormat
 	{
 		private final ByteArrayOutputStream s;
 
-		public Writer ()
+		Writer ()
 		{
 			s = new ByteArrayOutputStream ();
 		}
 
-		public Writer (ByteArrayOutputStream s)
+		Writer (ByteArrayOutputStream s)
 		{
 			this.s = s;
 		}
 
-		public void writeByte (int n)
+		public Writer writeByte (int n)
 		{
 			s.write (n);
+			return this;
 		}
 
-		public void writeBytes (byte[] b)
+		public Writer writeBytes (byte[] b)
 		{
 			try
 			{
@@ -264,9 +280,10 @@ public class ScriptFormat
 			catch ( IOException e )
 			{
 			}
+			return this;
 		}
 
-		public void writeData (byte[] data)
+		public Writer writeData (byte[] data)
 		{
 			if ( data.length <= 75 )
 			{
@@ -291,9 +308,11 @@ public class ScriptFormat
 				writeInt32 (data.length);
 				writeBytes (data);
 			}
+
+			return this;
 		}
 
-		public void writeToken (Token token)
+		public Writer writeToken (Token token)
 		{
 			s.write (token.op.o);
 			if ( token.data != null )
@@ -318,20 +337,26 @@ public class ScriptFormat
 				{
 				}
 			}
+
+			return this;
 		}
 
-		public void writeInt16 (long n)
+		public Writer writeInt16 (long n)
 		{
 			s.write ((int) (0xFFL & n));
 			s.write ((int) (0xFFL & (n >> 8)));
+
+			return this;
 		}
 
-		public void writeInt32 (long n)
+		public Writer writeInt32 (long n)
 		{
 			s.write ((int) (0xFF & n));
 			s.write ((int) (0xFF & (n >> 8)));
 			s.write ((int) (0xFF & (n >> 16)));
 			s.write ((int) (0xFF & (n >> 24)));
+
+			return this;
 		}
 
 		public byte[] toByteArray ()
@@ -346,7 +371,7 @@ public class ScriptFormat
 
 		public Tokenizer (byte[] script)
 		{
-			reader = new Reader (script);
+			reader = reader (script);
 		}
 
 		public boolean hashMoreElements ()
@@ -500,7 +525,7 @@ public class ScriptFormat
 
 	public static List<ScriptFormat.Token> parse (byte[] script) throws ValidationException
 	{
-		List<ScriptFormat.Token> p = new ArrayList<ScriptFormat.Token> ();
+		List<ScriptFormat.Token> p = new ArrayList<> ();
 		ScriptFormat.Tokenizer tokenizer = new ScriptFormat.Tokenizer (script);
 		while ( tokenizer.hashMoreElements () )
 		{
@@ -567,7 +592,7 @@ public class ScriptFormat
 
 	public static byte[] fromReadable (String s)
 	{
-		ScriptFormat.Writer writer = new ScriptFormat.Writer ();
+		ScriptFormat.Writer writer = ScriptFormat.writer ();
 		StringTokenizer tokenizer = new StringTokenizer (s, " ");
 		while ( tokenizer.hasMoreElements () )
 		{
@@ -604,7 +629,7 @@ public class ScriptFormat
 			{
 				try
 				{
-					long n = Long.valueOf (token).longValue ();
+					long n = Long.valueOf (token);
 					if ( n >= 1 && n <= 16 )
 					{
 						writer.writeByte (Opcode.OP_1.o + (int) n - 1);
@@ -614,10 +639,7 @@ public class ScriptFormat
 						writer.writeData (new Number (n).toByteArray ());
 					}
 				}
-				catch ( NumberFormatException e )
-				{
-				}
-				catch ( ValidationException e )
+				catch ( NumberFormatException | ValidationException e )
 				{
 				}
 			}
@@ -640,7 +662,7 @@ public class ScriptFormat
 
 	public static String toReadable (byte[] script) throws ValidationException
 	{
-		List<ScriptFormat.Token> tokens = null;
+		List<ScriptFormat.Token> tokens;
 		try
 		{
 			tokens = parse (script);
@@ -649,7 +671,7 @@ public class ScriptFormat
 		{
 			return "0x" + ByteUtils.toHex (script);
 		}
-		StringBuffer b = new StringBuffer ();
+		StringBuilder b = new StringBuilder ();
 		boolean first = true;
 		for ( ScriptFormat.Token token : tokens )
 		{
@@ -663,7 +685,9 @@ public class ScriptFormat
 				if ( token.data.length > 0 )
 				{
 					// TODO: this works only for 1 byte length
-					b.append ("0x" + ByteUtils.toHex (new byte[] { (byte) (token.op.o & 0xff) }) + ByteUtils.toHex (token.data));
+					b.append ("0x")
+					 .append (ByteUtils.toHex (new byte[]{(byte) (token.op.o & 0xff)}))
+					 .append (ByteUtils.toHex (token.data));
 				}
 				else
 				{
@@ -788,7 +812,7 @@ public class ScriptFormat
 	public static byte[] deleteSignatureFromScript (byte[] script, byte[] sig) throws ValidationException
 	{
 		ScriptFormat.Tokenizer tokenizer = new ScriptFormat.Tokenizer (script);
-		ScriptFormat.Writer writer = new ScriptFormat.Writer ();
+		ScriptFormat.Writer writer = ScriptFormat.writer ();
 		while ( tokenizer.hashMoreElements () )
 		{
 			ScriptFormat.Token token = tokenizer.nextToken ();

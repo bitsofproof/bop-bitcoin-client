@@ -70,26 +70,28 @@ public class Address
 
 	public byte[] getAddressScript () throws ValidationException
 	{
-		ScriptFormat.Writer writer = new ScriptFormat.Writer ();
 		if ( type == Address.Type.COMMON )
 		{
-			writer.writeToken (new ScriptFormat.Token (Opcode.OP_DUP));
-			writer.writeToken (new ScriptFormat.Token (Opcode.OP_HASH160));
-			writer.writeData (bytes);
-			writer.writeToken (new ScriptFormat.Token (Opcode.OP_EQUALVERIFY));
-			writer.writeToken (new ScriptFormat.Token (Opcode.OP_CHECKSIG));
+			return ScriptFormat.writer ()
+			                   .writeToken (new ScriptFormat.Token (Opcode.OP_DUP))
+			                   .writeToken (new ScriptFormat.Token (Opcode.OP_HASH160))
+			                   .writeData (bytes)
+			                   .writeToken (new ScriptFormat.Token (Opcode.OP_EQUALVERIFY))
+			                   .writeToken (new ScriptFormat.Token (Opcode.OP_CHECKSIG))
+			                   .toByteArray ();
 		}
 		else if ( type == Address.Type.P2SH )
 		{
-			writer.writeToken (new ScriptFormat.Token (Opcode.OP_HASH160));
-			writer.writeData (bytes);
-			writer.writeToken (new ScriptFormat.Token (Opcode.OP_EQUAL));
+			return ScriptFormat.writer ()
+			                   .writeToken (new ScriptFormat.Token (Opcode.OP_HASH160))
+			                   .writeData (bytes)
+			                   .writeToken (new ScriptFormat.Token (Opcode.OP_EQUAL))
+			                   .toByteArray ();
 		}
 		else
 		{
 			throw new ValidationException ("unknown sink address type");
 		}
-		return writer.toByteArray ();
 	}
 
 	@Override

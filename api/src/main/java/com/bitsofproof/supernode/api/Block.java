@@ -41,24 +41,24 @@ public class Block implements Serializable, Cloneable
 	List<Transaction> transactions;
 	private int height;
 
+	public Block ()
+	{
+		transactions = new ArrayList<> ();
+	}
+
 	@Override
 	public Block clone () throws CloneNotSupportedException
 	{
 		Block c = (Block) super.clone ();
 		c.hash = hash;
-		c.version = version;
-		c.previousHash = previousHash;
+		c.previousHash = hash;
 		c.merkleRoot = merkleRoot;
-		c.difficultyTarget = difficultyTarget;
-		c.nonce = nonce;
-		if ( transactions != null )
+		c.transactions = new ArrayList<> (transactions.size ());
+		for ( Transaction t : transactions )
 		{
-			c.transactions = new ArrayList<> (transactions.size ());
-			for ( Transaction t : transactions )
-			{
-				c.transactions.add (t.clone ());
-			}
+			c.transactions.add (t.clone ());
 		}
+
 		return c;
 	}
 
