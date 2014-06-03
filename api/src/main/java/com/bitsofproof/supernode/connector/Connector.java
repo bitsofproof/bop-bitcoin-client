@@ -15,7 +15,7 @@
  */
 package com.bitsofproof.supernode.connector;
 
-public interface Connector
+public interface Connector extends AutoCloseable
 {
 	public ConnectorSession createSession () throws ConnectorException;
 
