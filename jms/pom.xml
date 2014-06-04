@@ -13,6 +13,10 @@
 		<relativePath>../</relativePath>
 	</parent>
 
+	<properties>
+		<guava.version>16.0.1</guava.version>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>com.bitsofproof</groupId>
@@ -41,6 +45,20 @@
 			<version>${logback.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.assertj</groupId>
+			<artifactId>assertj-core</artifactId>
+			<version>1.5.0</version>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
