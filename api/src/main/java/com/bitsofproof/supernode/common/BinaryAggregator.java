@@ -17,6 +17,11 @@ package com.bitsofproof.supernode.common;
 
 import java.util.List;
 
+/**
+ * A utility class to calculate merkle root
+ * 
+ * @param <T>
+ */
 public abstract class BinaryAggregator<T>
 {
 	public abstract T merge (T a, T b);

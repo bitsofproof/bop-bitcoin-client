@@ -138,20 +138,34 @@ public interface BCSAPI
 	public void removeTrunkListener (TrunkListener listener);
 
 	/**
-	 * Scan transactions using and address or outpoint in match.
+	 * Scan transactions using an address in the given set
 	 * 
-	 * @param match
+	 * @param addresses
+	 *            - address set
+	 * @param after
+	 *            - a time point after which the block chain is scanned. The time point is miliseconds in the Unix epoch. The parameter can optimize chain
+	 *            lookup, as of current version it is ignored.
 	 * @param listener
+	 *            - the transaction listener will be called for all transactions found. This call will not return until the listener is called for all
+	 *            transactions identified
 	 * @throws BCSAPIException
 	 */
 	public void scanTransactionsForAddresses (Set<Address> addresses, long after, TransactionListener listener)
 			throws BCSAPIException;
 
 	/**
-	 * Scan transactions for an account
+	 * Scan transactions for reference of any address of a master key.
 	 * 
 	 * @param master
 	 *            - public master key
+	 * @param firstIndex
+	 *            - index of the first key of the master key that might be used on the chain after time point, usually 0
+	 * @param lookAhead
+	 *            - look ahead window while scanning for addresses. The server assumes that the gap between consecutive addresses of the master key used on the
+	 *            block chain is not bigger than lookAhead.
+	 * @param after
+	 *            - a time point after which the block chain is scanned. The time point is miliseconds in the Unix epoch. The parameter can optimize chain
+	 *            lookup in conjunction with firstIndex. As of current version parameter after is ignored.
 	 * @param listener
 	 * @throws BCSAPIException
 	 */

@@ -29,6 +29,9 @@ import com.bitsofproof.supernode.common.ValidationException;
 import com.bitsofproof.supernode.common.WireFormat;
 import com.google.protobuf.ByteString;
 
+/**
+ * A Bitcoin Transaction in an object
+ */
 public class Transaction implements Serializable, Cloneable
 {
 	private static final long serialVersionUID = 690918485496086537L;
@@ -49,6 +52,15 @@ public class Transaction implements Serializable, Cloneable
 	private String hash;
 	private String offendingTx;
 
+	/**
+	 * create a coin base transaction crediting the given address with a value and block height This is used in automated tests only.
+	 * 
+	 * @param address
+	 * @param value
+	 * @param blockHeight
+	 * @return
+	 * @throws ValidationException
+	 */
 	public static Transaction createCoinbase (Address address, long value, int blockHeight) throws ValidationException
 	{
 		Transaction cb = new Transaction ();
@@ -75,46 +87,98 @@ public class Transaction implements Serializable, Cloneable
 		return cb;
 	}
 
+	/**
+	 * get transaction version
+	 * 
+	 * @return version
+	 */
 	public long getVersion ()
 	{
 		return version;
 	}
 
+	/**
+	 * get hash of the block this transaction is embedded into. Note that this is not part of the protocol, but is filled by the server while retrieving a
+	 * transaction in context of a block A transaction alone might not have this filled.
+	 * 
+	 * @return
+	 */
 	public String getBlockHash ()
 	{
 		return blockHash;
 	}
 
+	/**
+	 * Set the block hash this transaction is in
+	 * 
+	 * @param blockHash
+	 */
 	public void setBlockHash (String blockHash)
 	{
 		this.blockHash = blockHash;
 	}
 
+	/**
+	 * Set transaction version
+	 * 
+	 * @param version
+	 */
 	public void setVersion (long version)
 	{
 		this.version = version;
 	}
 
+	/**
+	 * The time point after which this transaction can be included into the block chain. It is interpreted as block height if < 500000000 and as seconds in Unix
+	 * epoch if >= 500000000
+	 * 
+	 * This is only relevant if sequence number is not 0xffffffff (final)
+	 * 
+	 * @return
+	 */
 	public long getLockTime ()
 	{
 		return lockTime;
 	}
 
+	/**
+	 * Set the time point after which this transaction can be included into the block chain. It is interpreted as block height if < 500000000 and as seconds in
+	 * Unix epoch if >= 500000000
+	 * 
+	 * This is only relevant if sequence number is not 0xffffffff (final)
+	 * 
+	 * @return
+	 */
 	public void setLockTime (long lockTime)
 	{
 		this.lockTime = lockTime;
 	}
 
+	/**
+	 * get the time stamp of the block containing this transaction. Note that this is not part of the protocol but filled by the server if the transaction is
+	 * retrieved in the context of a block
+	 * 
+	 * @return
+	 */
 	public long getBlocktime ()
 	{
 		return blocktime;
 	}
 
+	/**
+	 * set the time stamp of the block containing this transaction. Note that this is not part of the protocol but filled by the server if the transaction is
+	 * retrieved in the context of a block
+	 * 
+	 * @return
+	 */
 	public void setBlocktime (long blocktime)
 	{
 		this.blocktime = blocktime;
 	}
 
+	/**
+	 * compute and set the transaction hash by computing digest of its entire content in wire format
+	 */
 	public void computeHash ()
 	{
 		WireFormat.Writer writer = new WireFormat.Writer ();
@@ -131,6 +195,11 @@ public class Transaction implements Serializable, Cloneable
 		}
 	}
 
+	/**
+	 * get the transaction hash. Note that this also computes it if it were not yest available.
+	 * 
+	 * @return transaction hash
+	 */
 	public String getHash ()
 	{
 		if ( hash == null )
@@ -140,61 +209,121 @@ public class Transaction implements Serializable, Cloneable
 		return hash;
 	}
 
+	/**
+	 * set the transaction hash to an arbirtary value
+	 * 
+	 * @param hash
+	 */
 	public void setHash (String hash)
 	{
 		this.hash = hash;
 	}
 
+	/**
+	 * get the transaction inputs
+	 * 
+	 * @return
+	 */
 	public List<TransactionInput> getInputs ()
 	{
 		return inputs;
 	}
 
+	/**
+	 * set the transaction inputs
+	 * 
+	 * @param inputs
+	 */
 	public void setInputs (List<TransactionInput> inputs)
 	{
 		this.inputs = inputs;
 	}
 
+	/**
+	 * get transaction outputs
+	 * 
+	 * @return
+	 */
 	public List<TransactionOutput> getOutputs ()
 	{
 		return outputs;
 	}
 
+	/**
+	 * set transaction outputs
+	 * 
+	 * @param outputs
+	 */
 	public void setOutputs (List<TransactionOutput> outputs)
 	{
 		this.outputs = outputs;
 	}
 
+	/**
+	 * a flag set by the server if this transaction was removed from memory pool because it was not included into a block for longer than the set timeout.
+	 * 
+	 * @return
+	 */
 	public boolean isExpired ()
 	{
 		return expired;
 	}
 
+	/**
+	 * set expiry flag on transaction
+	 * 
+	 * @param expired
+	 */
 	public void setExpired (boolean expired)
 	{
 		this.expired = expired;
 	}
 
+	/**
+	 * an other transaction hash set by the server if that other transaction double spent inputs of this.
+	 * 
+	 * @return
+	 */
 	public String getOffendingTx ()
 	{
 		return offendingTx;
 	}
 
+	/**
+	 * an other transaction hash set by the server if that other transaction double spent inputs of this.
+	 * 
+	 * @param offendingTx
+	 */
 	public void setOffendingTx (String offendingTx)
 	{
 		this.offendingTx = offendingTx;
 	}
 
+	/**
+	 * Block height this transaction is included into, set by the server is available
+	 * 
+	 * @return
+	 */
 	public int getHeight ()
 	{
 		return height;
 	}
 
+	/**
+	 * Block height this transaction is included into, set by the server is available
+	 * 
+	 * @param height
+	 */
 	public void setHeight (int height)
 	{
 		this.height = height;
 	}
 
+	/**
+	 * write the transaction to a wire format writer
+	 * 
+	 * @param writer
+	 */
 	public void toWire (WireFormat.Writer writer)
 	{
 		writer.writeUint32 (version);
@@ -227,6 +356,12 @@ public class Transaction implements Serializable, Cloneable
 		writer.writeUint32 (lockTime);
 	}
 
+	/**
+	 * Recreate a transaction object from a wire format reader
+	 * 
+	 * @param reader
+	 * @return
+	 */
 	public static Transaction fromWire (WireFormat.Reader reader)
 	{
 		Transaction t = new Transaction ();
@@ -269,11 +404,22 @@ public class Transaction implements Serializable, Cloneable
 		return t;
 	}
 
+	/**
+	 * Recreate a transaction object from a wire format dump in hexadecimal format
+	 * 
+	 * @param dump
+	 * @return
+	 */
 	public static Transaction fromWireDump (String dump)
 	{
 		return fromWire (new WireFormat.Reader (ByteUtils.fromHex (dump)));
 	}
 
+	/**
+	 * dump the transaction in wire format to a hexadecimal string
+	 * 
+	 * @return
+	 */
 	public String toWireDump ()
 	{
 		WireFormat.Writer writer = new WireFormat.Writer ();
@@ -315,6 +461,11 @@ public class Transaction implements Serializable, Cloneable
 		return t;
 	}
 
+	/**
+	 * Create a protobuf message for the transaction as used to communicate with the server.
+	 * 
+	 * @return
+	 */
 	public BCSAPIMessage.Transaction toProtobuf ()
 	{
 		BCSAPIMessage.Transaction.Builder builder = BCSAPIMessage.Transaction.newBuilder ();
@@ -353,6 +504,12 @@ public class Transaction implements Serializable, Cloneable
 		return builder.build ();
 	}
 
+	/**
+	 * Recreate the transaction object from a protobuf message
+	 * 
+	 * @param pt
+	 * @return
+	 */
 	public static Transaction fromProtobuf (BCSAPIMessage.Transaction pt)
 	{
 		Transaction transaction = new Transaction ();
@@ -395,6 +552,19 @@ public class Transaction implements Serializable, Cloneable
 		return transaction;
 	}
 
+	/**
+	 * compute the digest for a signature
+	 * 
+	 * @param inr
+	 *            - the input we want to sign for
+	 * @param hashType
+	 *            - the type of signature. SIGHASH_ALL: sign all inputs and outputs (default), SIGHASH_NONE: sign any output, SIGHASH_SINGLE: sign one of the
+	 *            outputs, SIGHASH_ANYONECANPAY: let others add inputs
+	 * @param script
+	 *            - the input script to sign
+	 * @return - digest to sign
+	 * @throws ValidationException
+	 */
 	public byte[] hashTransaction (int inr, int hashType, byte[] script) throws ValidationException
 	{
 		Transaction copy;
