@@ -15,7 +15,15 @@
  */
 package com.bitsofproof.supernode.api;
 
+/**
+ * Listener interface for transactions sent by the server
+ */
 public interface TransactionListener
 {
+	/**
+	 * @param t
+	 *            - transaction received
+	 * @return
+	 */
 	public boolean process (Transaction t);
 }

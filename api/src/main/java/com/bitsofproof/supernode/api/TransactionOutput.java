@@ -21,6 +21,9 @@ import com.bitsofproof.supernode.common.ScriptFormat;
 import com.bitsofproof.supernode.common.WireFormat;
 import com.google.protobuf.ByteString;
 
+/**
+ * An output of a transaction Contains the value reallocated and a script that needs to be fulfilled to spend it again.
+ */
 public class TransactionOutput implements Serializable, Cloneable
 {
 	private static final long serialVersionUID = 3028618872354766234L;
@@ -30,36 +33,71 @@ public class TransactionOutput implements Serializable, Cloneable
 	private long value;
 	private byte[] script;
 
+	/**
+	 * Hash of the transaction this output is part of. This is computed if hash of the transaction is computed.
+	 * 
+	 * @return
+	 */
 	public String getTxHash ()
 	{
 		return txHash;
 	}
 
+	/**
+	 * Set the transaction hash
+	 * 
+	 * @param txHash
+	 */
 	public void setTxHash (String txHash)
 	{
 		this.txHash = txHash;
 	}
 
+	/**
+	 * Get the order number of this output within the transaction (starts with 0)
+	 * 
+	 * @return
+	 */
 	public long getIx ()
 	{
 		return ix;
 	}
 
+	/**
+	 * Set the order number of this output within the transaction (starts with 0)
+	 * 
+	 * @param ix
+	 */
 	public void setIx (long ix)
 	{
 		this.ix = ix;
 	}
 
+	/**
+	 * get the value reallocated
+	 * 
+	 * @return
+	 */
 	public long getValue ()
 	{
 		return value;
 	}
 
+	/**
+	 * set value to be reallocated
+	 * 
+	 * @param value
+	 */
 	public void setValue (long value)
 	{
 		this.value = value;
 	}
 
+	/**
+	 * get the script a transaction spending this output has to fulfill This is usually an Address script, @see Address.getAddressScript
+	 * 
+	 * @return
+	 */
 	public byte[] getScript ()
 	{
 		if ( script != null )
@@ -71,6 +109,11 @@ public class TransactionOutput implements Serializable, Cloneable
 		return null;
 	}
 
+	/**
+	 * set the script a transaction spending this output has to fulfill This is usually an Address script, @see Address.getAddressScript
+	 * 
+	 * @return
+	 */
 	public void setScript (byte[] script)
 	{
 		if ( script != null )
@@ -84,12 +127,23 @@ public class TransactionOutput implements Serializable, Cloneable
 		}
 	}
 
+	/**
+	 * write the output in wire format to a writer
+	 * 
+	 * @param writer
+	 */
 	public void toWire (WireFormat.Writer writer)
 	{
 		writer.writeUint64 (value);
 		writer.writeVarBytes (script);
 	}
 
+	/**
+	 * recreate the output from wire format
+	 * 
+	 * @param reader
+	 * @return
+	 */
 	public static TransactionOutput fromWire (WireFormat.Reader reader)
 	{
 		TransactionOutput o = new TransactionOutput ();
@@ -98,6 +152,11 @@ public class TransactionOutput implements Serializable, Cloneable
 		return o;
 	}
 
+	/**
+	 * Get the address referenced in the script. The parse might fail for not plain-vanilla transactions and return null
+	 * 
+	 * @return
+	 */
 	public Address getOutputAddress ()
 	{
 		return ScriptFormat.getAddress (script);
@@ -118,6 +177,11 @@ public class TransactionOutput implements Serializable, Cloneable
 		return o;
 	}
 
+	/**
+	 * Write the output in protobuf format for server communication
+	 * 
+	 * @return
+	 */
 	public BCSAPIMessage.TransactionOutput toProtobuf ()
 	{
 		BCSAPIMessage.TransactionOutput.Builder builder = BCSAPIMessage.TransactionOutput.newBuilder ();
@@ -126,6 +190,12 @@ public class TransactionOutput implements Serializable, Cloneable
 		return builder.build ();
 	}
 
+	/**
+	 * recreate the output from protobuf server message
+	 * 
+	 * @param po
+	 * @return
+	 */
 	public static TransactionOutput fromProtobuf (BCSAPIMessage.TransactionOutput po)
 	{
 		TransactionOutput output = new TransactionOutput ();

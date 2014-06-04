@@ -15,6 +15,9 @@
  */
 package com.bitsofproof.supernode.api;
 
+/**
+ * An exception from the BOP Bitcoin Server or a problem communicating with it.
+ */
 public class BCSAPIException extends Exception
 {
 	private static final long serialVersionUID = -816029891683622613L;

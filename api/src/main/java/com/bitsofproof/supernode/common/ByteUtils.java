@@ -21,7 +21,9 @@ import java.util.Arrays;
 
 import org.bouncycastle.util.encoders.Hex;
 
-
+/**
+ * generic byte array utilities
+ */
 public class ByteUtils
 {
 	private static final char[] b58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".toCharArray ();
@@ -38,6 +40,13 @@ public class ByteUtils
 		}
 	}
 
+	/**
+	 * convert a byte array to a human readable base58 string. Base58 is a Bitcoin specific encoding similar to widely used base64 but avoids using characters
+	 * of similar shape, such as 1 and l or O an 0
+	 * 
+	 * @param b
+	 * @return
+	 */
 	public static String toBase58 (byte[] b)
 	{
 		if ( b.length == 0 )
@@ -68,6 +77,12 @@ public class ByteUtils
 		return s.reverse ().toString ();
 	}
 
+	/**
+	 * Encode in base58 with an added checksum of four bytes.
+	 * 
+	 * @param b
+	 * @return
+	 */
 	public static String toBase58WithChecksum (byte[] b)
 	{
 		byte[] cs = Hash.hash (b);
@@ -77,6 +92,13 @@ public class ByteUtils
 		return toBase58 (extended);
 	}
 
+	/**
+	 * decode from base58 assuming a trailing checksum of four bytes
+	 * 
+	 * @param s
+	 * @return
+	 * @throws ValidationException
+	 */
 	public static byte[] fromBase58WithChecksum (String s) throws ValidationException
 	{
 		byte[] b = fromBase58 (s);
@@ -97,6 +119,13 @@ public class ByteUtils
 		throw new ValidationException ("Checksum mismatch " + s);
 	}
 
+	/**
+	 * decode from base58
+	 * 
+	 * @param s
+	 * @return
+	 * @throws ValidationException
+	 */
 	public static byte[] fromBase58 (String s) throws ValidationException
 	{
 		try
@@ -146,6 +175,12 @@ public class ByteUtils
 		}
 	}
 
+	/**
+	 * reverse a byte array in place
+	 * 
+	 * @param data
+	 * @return
+	 */
 	public static byte[] reverse (byte[] data)
 	{
 		for ( int i = 0, j = data.length - 1; i < data.length / 2; i++, j-- )
@@ -157,6 +192,12 @@ public class ByteUtils
 		return data;
 	}
 
+	/**
+	 * convert a byte array to hexadecimal
+	 * 
+	 * @param data
+	 * @return
+	 */
 	public static String toHex (byte[] data)
 	{
 		try
@@ -169,11 +210,24 @@ public class ByteUtils
 		return null;
 	}
 
+	/**
+	 * recreate a byte array from hexadecimal
+	 * 
+	 * @param hex
+	 * @return
+	 */
 	public static byte[] fromHex (String hex)
 	{
 		return Hex.decode (hex);
 	}
 
+	/**
+	 * compare two longs as if they were unsigned longs
+	 * 
+	 * @param n1
+	 * @param n2
+	 * @return true if n1 < n2
+	 */
 	public static boolean isLessThanUnsigned (long n1, long n2)
 	{
 		return (n1 < n2) ^ ((n1 < 0) != (n2 < 0));

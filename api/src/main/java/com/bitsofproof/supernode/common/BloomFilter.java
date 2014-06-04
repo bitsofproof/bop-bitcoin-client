@@ -24,6 +24,9 @@ import org.bouncycastle.util.Arrays;
 
 import com.bitsofproof.supernode.api.Address;
 
+/**
+ * A bloom filter
+ */
 public class BloomFilter
 {
 	public static enum UpdateMode
@@ -39,11 +42,35 @@ public class BloomFilter
 	private static final int MAX_FILTER_SIZE = 36000;
 	private static final int MAX_HASH_FUNCS = 50;
 
+	/**
+	 * create a bloom filter of optimal size and hash functions for
+	 * 
+	 * @param n
+	 *            - number of data stored
+	 * @param falsePositiveProbability
+	 *            - target false positive probability less than this
+	 * @param update
+	 *            - a flag if bloom filter should be updated with transactions it matches.
+	 * @return a new empty bloom filter
+	 */
 	public static BloomFilter createOptimalFilter (int n, double falsePositiveProbability, UpdateMode update)
 	{
 		return createOptimalFilter (n, falsePositiveProbability, Math.abs (new SecureRandom ().nextInt ()), update);
 	}
 
+	/**
+	 * create a bloom filter of optimal size and hash functions for
+	 * 
+	 * @param n
+	 *            - number of data stored
+	 * @param falsePositiveProbability
+	 *            - target false positive probability less than this
+	 * @param tweak
+	 *            - a tweak to obfuscate what information the filter was built on
+	 * @param update
+	 *            - a flag if bloom filter should be updated with transactions it matches.
+	 * @return a new empty bloom filter
+	 */
 	public static BloomFilter createOptimalFilter (int n, double falsePositiveProbability, long tweak, UpdateMode update)
 	{
 		// http://en.wikipedia.org/wiki/Bloom_filter#Probability_of_false_positives
@@ -53,11 +80,29 @@ public class BloomFilter
 		return new BloomFilter (new byte[mod], hashFunctions, tweak, update);
 	}
 
+	/**
+	 * Get false positive probability for given filter if fed with n input data.
+	 * 
+	 * @param n
+	 * @return
+	 */
 	public double getFalsePositiveProbability (int n)
 	{
 		return Math.pow (1 - Math.pow (Math.E, -1.0 * (hashFunctions * n) / (filter.length * 8)), hashFunctions);
 	}
 
+	/**
+	 * Create a bloom filter
+	 * 
+	 * @param data
+	 *            filter content
+	 * @param hashFunctions
+	 *            - number of hash functions to use
+	 * @param tweak
+	 *            - obfuscation parameter
+	 * @param update
+	 *            - a flag if transactions identified by the filter should update the filter
+	 */
 	public BloomFilter (byte[] data, long hashFunctions, long tweak, UpdateMode update)
 	{
 		filter = Arrays.clone (data);
@@ -66,6 +111,13 @@ public class BloomFilter
 		this.update = update;
 	}
 
+	/**
+	 * Serialization of a transaction output, suitable to be included into a bloom filter
+	 * 
+	 * @param hash
+	 * @param ix
+	 * @return
+	 */
 	public static byte[] serializedOutpoint (String hash, long ix)
 	{
 		WireFormat.Writer writer = new WireFormat.Writer ();
@@ -74,6 +126,15 @@ public class BloomFilter
 		return writer.toByteArray ();
 	}
 
+	/**
+	 * Serialize and add a transaction output to a filter
+	 * 
+	 * @param hash
+	 *            - transaction hash
+	 * @param ix
+	 *            - output order number
+	 * @return
+	 */
 	public int addOutpoint (String hash, long ix)
 	{
 		byte[] point = serializedOutpoint (hash, ix);
@@ -81,26 +142,58 @@ public class BloomFilter
 		return Arrays.hashCode (point);
 	}
 
+	/**
+	 * Check if the filter contains a transaction output with positive probability
+	 * 
+	 * @param hash
+	 * @param ix
+	 * @return
+	 */
 	public boolean containsOutpoint (String hash, long ix)
 	{
 		return contains (serializedOutpoint (hash, ix));
 	}
 
+	/**
+	 * Check if the filter contains an address with positive probability
+	 * 
+	 * @param address
+	 * @param addressFlag
+	 * @return
+	 * @throws ValidationException
+	 */
 	public boolean containsAddress (String address, int addressFlag) throws ValidationException
 	{
 		return contains (Address.fromSatoshiStyle (address, addressFlag));
 	}
 
+	/**
+	 * explicitelly set a filter bit
+	 * 
+	 * @param n
+	 */
 	private void setBit (int n)
 	{
 		filter[n >>> 3] |= 1 << (7 & n);
 	}
 
+	/**
+	 * test if a bit is set in the filter mask
+	 * 
+	 * @param n
+	 * @return
+	 */
 	private boolean testBit (int n)
 	{
 		return (filter[n >>> 3] & 1 << (7 & n)) != 0;
 	}
 
+	/**
+	 * add some data to the filter.
+	 * 
+	 * @param data
+	 * @return
+	 */
 	public int add (byte[] data)
 	{
 		for ( int i = 0; i < hashFunctions; ++i )
@@ -110,6 +203,12 @@ public class BloomFilter
 		return Arrays.hashCode (data);
 	}
 
+	/**
+	 * Ask if a data was added to the filter. The filter might give false positive answers, but will not confirm existence of data that was not added.
+	 * 
+	 * @param data
+	 * @return
+	 */
 	public boolean contains (byte[] data)
 	{
 		for ( int i = 0; i < hashFunctions; ++i )
@@ -122,6 +221,13 @@ public class BloomFilter
 		return true;
 	}
 
+	/**
+	 * Precompute hashes used to set mask bits for a data.
+	 * 
+	 * @param data
+	 * @param tweak
+	 * @return
+	 */
 	public static List<Integer> precomputeHashes (byte[] data, long tweak)
 	{
 		ArrayList<Integer> list = new ArrayList<Integer> (MAX_HASH_FUNCS);
@@ -132,6 +238,12 @@ public class BloomFilter
 		return list;
 	}
 
+	/**
+	 * check if the filter contains data with precomputed hashes.
+	 * 
+	 * @param hashes
+	 * @return
+	 */
 	public boolean contains (List<Integer> hashes)
 	{
 		Iterator<Integer> ni = hashes.iterator ();
@@ -150,6 +262,11 @@ public class BloomFilter
 		return murmurhash3 (data, 0, data.length, (int) (hashNum * 0xFBA4C795L + tweak));
 	}
 
+	/**
+	 * write filter to wire
+	 * 
+	 * @param writer
+	 */
 	public void toWire (WireFormat.Writer writer)
 	{
 		writer.writeVarBytes (filter);
@@ -158,6 +275,12 @@ public class BloomFilter
 		writer.writeByte (update.ordinal ());
 	}
 
+	/**
+	 * reconstruct filter from wire format
+	 * 
+	 * @param reader
+	 * @return
+	 */
 	public static BloomFilter fromWire (WireFormat.Reader reader)
 	{
 		byte[] data = reader.readVarBytes ();
@@ -234,16 +357,31 @@ public class BloomFilter
 		return filter.clone ();
 	}
 
+	/**
+	 * get the number of hash functions used
+	 * 
+	 * @return
+	 */
 	public long getHashFunctions ()
 	{
 		return hashFunctions;
 	}
 
+	/**
+	 * get obfuscation parameter
+	 * 
+	 * @return
+	 */
 	public long getTweak ()
 	{
 		return tweak;
 	}
 
+	/**
+	 * get filter update mode
+	 * 
+	 * @return
+	 */
 	public UpdateMode getUpdateMode ()
 	{
 		return update;

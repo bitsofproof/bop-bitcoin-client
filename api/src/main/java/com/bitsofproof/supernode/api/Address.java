@@ -1,3 +1,18 @@
+/*
+ * Copyright 2013 bits of proof zrt.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.bitsofproof.supernode.api;
 
 import org.bouncycastle.util.Arrays;
@@ -8,8 +23,19 @@ import com.bitsofproof.supernode.common.ScriptFormat;
 import com.bitsofproof.supernode.common.ScriptFormat.Opcode;
 import com.bitsofproof.supernode.common.ValidationException;
 
+/**
+ * A public address in the ledger
+ */
 public class Address
 {
+	/**
+	 * Supported Address types are
+	 * 
+	 * <pre>
+	 * COMMON - digest of a single public key
+	 * P2SH - digest of a script
+	 * </pre>
+	 */
 	public enum Type
 	{
 		COMMON, P2SH
@@ -30,6 +56,18 @@ public class Address
 		this.network = network;
 	}
 
+	/**
+	 * Create an address
+	 * 
+	 * @param network
+	 *            - Network PRODUCTION or TEST
+	 * @param type
+	 *            - COMMON or P2SH
+	 * @param address
+	 *            - digest of key (COMMON) or script (P2SH)
+	 * @throws ValidationException
+	 *             - thrown if digest length is not 20 bytes
+	 */
 	public Address (Network network, Type type, byte[] address) throws ValidationException
 	{
 		this.network = network;
@@ -41,6 +79,16 @@ public class Address
 		this.bytes = Arrays.clone (address);
 	}
 
+	/**
+	 * Create an address
+	 * 
+	 * @param type
+	 *            - COMMON or P2SH
+	 * @param address
+	 *            - digest of key (COMMON) or script (P2SH)
+	 * @throws ValidationException
+	 *             - thrown if digest length is not 20 bytes
+	 */
 	public Address (Type type, byte[] address) throws ValidationException
 	{
 		this.type = type;
@@ -51,6 +99,14 @@ public class Address
 		this.bytes = Arrays.clone (address);
 	}
 
+	/**
+	 * Create an address
+	 * 
+	 * @param network
+	 *            - Network PRODUCTION or TEST
+	 * @param address
+	 *            - an other address
+	 */
 	public Address (Network network, Address address) throws ValidationException
 	{
 		this.network = network;
@@ -63,11 +119,23 @@ public class Address
 		return type;
 	}
 
+	/**
+	 * get the address digest
+	 * 
+	 * @return digest
+	 */
 	public byte[] toByteArray ()
 	{
 		return Arrays.clone (bytes);
 	}
 
+	/**
+	 * get the transaction output script suitable to refer to this address
+	 * 
+	 * @return transaction output script
+	 * @throws ValidationException
+	 *             - if output script is unknown for this address
+	 */
 	public byte[] getAddressScript () throws ValidationException
 	{
 		ScriptFormat.Writer writer = new ScriptFormat.Writer ();
@@ -112,6 +180,9 @@ public class Address
 		return Arrays.areEqual (bytes, ((Address) obj).bytes) && type == ((Address) obj).type;
 	}
 
+	/**
+	 * @return - human readable representation of the address
+	 */
 	@Override
 	public String toString ()
 	{
@@ -125,13 +196,22 @@ public class Address
 		}
 	}
 
-	public static Address fromSatoshiStyle (String s) throws ValidationException
+	/**
+	 * Convert a human readable address string to an address object
+	 * 
+	 * @param address
+	 *            - the human readable address
+	 * @return an address object with type and network ad encoded in the readable string
+	 * @throws ValidationException
+	 *             - for malformed address strings
+	 */
+	public static Address fromSatoshiStyle (String address) throws ValidationException
 	{
 		try
 		{
 			Network network = Network.PRODUCTION;
 			Address.Type type = Type.COMMON;
-			byte[] raw = ByteUtils.fromBase58 (s);
+			byte[] raw = ByteUtils.fromBase58 (address);
 			if ( (raw[0] & 0xff) == 0x0 )
 			{
 				network = Network.PRODUCTION;
@@ -170,11 +250,22 @@ public class Address
 		}
 	}
 
-	public static byte[] fromSatoshiStyle (String s, int addressFlag) throws ValidationException
+	/**
+	 * Convert a human readable address string to an address object
+	 * 
+	 * @param address
+	 *            - the human readable address
+	 * @param addressFlag
+	 *            - a flag encoded in the first byte of string representation
+	 * @return
+	 * @throws ValidationException
+	 */
+	@Deprecated
+	public static byte[] fromSatoshiStyle (String address, int addressFlag) throws ValidationException
 	{
 		try
 		{
-			byte[] raw = ByteUtils.fromBase58 (s);
+			byte[] raw = ByteUtils.fromBase58 (address);
 			if ( raw[0] != (byte) (addressFlag & 0xff) )
 			{
 				throw new ValidationException ("invalid address for this chain");
@@ -197,6 +288,17 @@ public class Address
 		}
 	}
 
+	/**
+	 * Convert to a human readable address string from a digest
+	 * 
+	 * @param keyDigest
+	 *            - the digest
+	 * @param addressFlag
+	 *            - a flag encoded in the first byte of string representation
+	 * @return
+	 * @throws ValidationException
+	 */
+	@Deprecated
 	public static String toSatoshiStyle (byte[] keyDigest, int addressFlag)
 	{
 		byte[] addressBytes = new byte[1 + keyDigest.length + 4];
@@ -207,6 +309,13 @@ public class Address
 		return ByteUtils.toBase58 (addressBytes);
 	}
 
+	/**
+	 * Convert to a human readable (BASE58) address with network and type prefixes.
+	 * 
+	 * @param address
+	 * @return human readable representation of the address
+	 * @throws ValidationException
+	 */
 	public static String toSatoshiStyle (Address address) throws ValidationException
 	{
 		byte[] keyDigest = address.toByteArray ();

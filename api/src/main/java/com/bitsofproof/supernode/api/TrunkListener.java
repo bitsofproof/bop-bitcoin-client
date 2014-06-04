@@ -17,7 +17,17 @@ package com.bitsofproof.supernode.api;
 
 import java.util.List;
 
+/**
+ * Listener of new blocks on the trunk of the chain
+ */
 public interface TrunkListener
 {
+	/**
+	 * called if blocks are added This is only called with blocks that establish a new longest chain. The new longest chain might imply a reorganisation whereby
+	 * blocks previously on trunk are removed.
+	 * 
+	 * @param added
+	 *            blocks
+	 */
 	public void trunkUpdate (List<Block> added);
 }

@@ -21,6 +21,9 @@ import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.WireFormat;
 import com.google.protobuf.ByteString;
 
+/**
+ * Input of a transaction (reference to a previous transaction output)
+ */
 public class TransactionInput implements Serializable, Cloneable
 {
 	private static final long serialVersionUID = -7019826355856117874L;
@@ -30,36 +33,71 @@ public class TransactionInput implements Serializable, Cloneable
 	private long sequence = 0xFFFFFFFFL;
 	private byte[] script;
 
+	/**
+	 * Referenced transaction
+	 * 
+	 * @return
+	 */
 	public String getSourceHash ()
 	{
 		return sourceHash;
 	}
 
+	/**
+	 * Set reference
+	 * 
+	 * @param sourceHash
+	 */
 	public void setSourceHash (String sourceHash)
 	{
 		this.sourceHash = sourceHash;
 	}
 
+	/**
+	 * Spend this output number of the transaction referenced. (0 is first)
+	 * 
+	 * @return
+	 */
 	public long getIx ()
 	{
 		return ix;
 	}
 
+	/**
+	 * Set the output number to spend from referenced transaction
+	 * 
+	 * @param ix
+	 */
 	public void setIx (long ix)
 	{
 		this.ix = ix;
 	}
 
+	/**
+	 * Sequence (version) number of the input. 0xfffff means final
+	 * 
+	 * @return
+	 */
 	public long getSequence ()
 	{
 		return sequence;
 	}
 
+	/**
+	 * Sequence (version) number of the input. 0xfffff means final
+	 * 
+	 * @param sequence
+	 */
 	public void setSequence (long sequence)
 	{
 		this.sequence = sequence;
 	}
 
+	/**
+	 * Script of the input. Signatures and script for P2SH
+	 * 
+	 * @return
+	 */
 	public byte[] getScript ()
 	{
 		if ( script != null )
@@ -71,6 +109,11 @@ public class TransactionInput implements Serializable, Cloneable
 		return null;
 	}
 
+	/**
+	 * Set input script. Signatures and script for P2SH
+	 * 
+	 * @param script
+	 */
 	public void setScript (byte[] script)
 	{
 		if ( script != null )
@@ -84,6 +127,11 @@ public class TransactionInput implements Serializable, Cloneable
 		}
 	}
 
+	/**
+	 * Write the input to a wire format writer
+	 * 
+	 * @param writer
+	 */
 	public void toWire (WireFormat.Writer writer)
 	{
 		if ( sourceHash != null && !sourceHash.equals (Hash.ZERO_HASH.toString ()) )
@@ -100,6 +148,12 @@ public class TransactionInput implements Serializable, Cloneable
 		writer.writeUint32 (sequence);
 	}
 
+	/**
+	 * Recreate transaction input reference from its wire format
+	 * 
+	 * @param reader
+	 * @return
+	 */
 	public static TransactionInput fromWire (WireFormat.Reader reader)
 	{
 		TransactionInput i = new TransactionInput ();
@@ -129,6 +183,11 @@ public class TransactionInput implements Serializable, Cloneable
 		return i;
 	}
 
+	/**
+	 * Transaction input to protobuf conversion for server communication
+	 * 
+	 * @return
+	 */
 	public BCSAPIMessage.TransactionInput toProtobuf ()
 	{
 		BCSAPIMessage.TransactionInput.Builder builder = BCSAPIMessage.TransactionInput.newBuilder ();
@@ -139,6 +198,12 @@ public class TransactionInput implements Serializable, Cloneable
 		return builder.build ();
 	}
 
+	/**
+	 * Recreate transaction input reference from protobuf message
+	 * 
+	 * @param pi
+	 * @return
+	 */
 	public static TransactionInput fromProtobuf (BCSAPIMessage.TransactionInput pi)
 	{
 		TransactionInput input = new TransactionInput ();
