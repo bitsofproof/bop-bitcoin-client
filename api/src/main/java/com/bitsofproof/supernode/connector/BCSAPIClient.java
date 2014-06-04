@@ -15,168 +15,51 @@
  */
 package com.bitsofproof.supernode.connector;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Semaphore;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.bitsofproof.supernode.api.Address;
-import com.bitsofproof.supernode.api.AlertListener;
-import com.bitsofproof.supernode.api.BCSAPI;
-import com.bitsofproof.supernode.api.BCSAPIException;
-import com.bitsofproof.supernode.api.BCSAPIMessage;
-import com.bitsofproof.supernode.api.Block;
-import com.bitsofproof.supernode.api.RejectListener;
-import com.bitsofproof.supernode.api.Transaction;
-import com.bitsofproof.supernode.api.TransactionListener;
-import com.bitsofproof.supernode.api.TrunkListener;
+import com.bitsofproof.supernode.api.*;
 import com.bitsofproof.supernode.common.ExtendedKey;
 import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.ValidationException;
+import com.bitsofproof.supernode.connector4.Connector4;
+import com.bitsofproof.supernode.connector4.Connector4Exception;
+import com.bitsofproof.supernode.connector4.Subscription;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class BCSAPIClient implements BCSAPI
 {
 	private static final Logger log = LoggerFactory.getLogger (BCSAPIClient.class);
 
-	private ConnectorFactory connectionFactory;
-	private Connector connection;
-
 	private Boolean production = null;
 
-	private final Map<String, MessageDispatcher> messageDispatcher = new HashMap<> ();
-
 	private long timeout = 10 * 60 * 1000; // 2 min
+
+	private Connector4 connector;
+
+	private final CopyOnWriteArrayList<RejectListener> rejectListeners = new CopyOnWriteArrayList<> ();
+
+	private final CopyOnWriteArrayList<AlertListener> alertListeners = new CopyOnWriteArrayList<> ();
+
+	private final CopyOnWriteArrayList<TransactionListener> transactionListeners = new CopyOnWriteArrayList<> ();
+
+	private final CopyOnWriteArrayList<TrunkListener> trunkListeners = new CopyOnWriteArrayList<> ();
 
 	public void setTimeout (long timeout)
 	{
 		this.timeout = timeout;
 	}
 
-	private interface ByteArrayMessageListener
+	public void setConnector (Connector4 connector)
 	{
-		public void onMessage (byte[] array);
-	}
-
-	private class MessageDispatcher
-	{
-		private final Map<Object, ByteArrayMessageListener> wrapperMap = new HashMap<> ();
-
-		private final ConnectorConsumer consumer;
-
-		public MessageDispatcher (ConnectorConsumer consumer)
-		{
-			this.consumer = consumer;
-			try
-			{
-				consumer.setMessageListener (new ConnectorListener ()
-				{
-					@Override
-					public void onMessage (ConnectorMessage message)
-					{
-						List<ByteArrayMessageListener> listenerList = new ArrayList<> ();
-						synchronized ( wrapperMap )
-						{
-							listenerList.addAll (wrapperMap.values ());
-						}
-						for ( ByteArrayMessageListener listener : listenerList )
-						{
-							try
-							{
-								listener.onMessage (message.getPayload ());
-							}
-							catch ( ConnectorException e )
-							{
-								log.error ("Unable to extract payload", e);
-							}
-						}
-					}
-				});
-			}
-			catch ( ConnectorException e )
-			{
-				log.error ("Can not attach message listener ", e);
-			}
-		}
-
-		public void addListener (Object inner, ByteArrayMessageListener listener)
-		{
-			synchronized ( wrapperMap )
-			{
-				wrapperMap.put (inner, listener);
-			}
-		}
-
-		public void removeListener (Object inner)
-		{
-			synchronized ( wrapperMap )
-			{
-				wrapperMap.remove (inner);
-			}
-		}
-
-		public boolean isListened ()
-		{
-			synchronized ( wrapperMap )
-			{
-				return !wrapperMap.isEmpty ();
-			}
-		}
-
-		public ConnectorConsumer getConsumer ()
-		{
-			return consumer;
-		}
-	}
-
-	public void setConnectionFactory (ConnectorFactory connectionFactory)
-	{
-		this.connectionFactory = connectionFactory;
-	}
-
-	private void addTopicListener (String topic, Object inner, ByteArrayMessageListener listener) throws ConnectorException
-	{
-		synchronized ( messageDispatcher )
-		{
-			MessageDispatcher dispatcher = messageDispatcher.get (topic);
-			if ( dispatcher == null )
-			{
-				ConnectorSession session = connection.createSession ();
-				ConnectorConsumer consumer = session.createConsumer (session.createTopic (topic));
-				messageDispatcher.put (topic, dispatcher = new MessageDispatcher (consumer));
-			}
-			dispatcher.addListener (inner, listener);
-		}
-	}
-
-	private void removeTopicListener (String topic, Object inner)
-	{
-		synchronized ( messageDispatcher )
-		{
-			MessageDispatcher dispatcher = messageDispatcher.get (topic);
-			if ( dispatcher != null )
-			{
-				dispatcher.removeListener (inner);
-				if ( !dispatcher.isListened () )
-				{
-					messageDispatcher.remove (topic);
-					try
-					{
-						dispatcher.getConsumer ().close ();
-					}
-					catch ( ConnectorException e )
-					{
-					}
-				}
-			}
-		}
+		this.connector = connector;
 	}
 
 	public void init ()
@@ -184,10 +67,44 @@ public class BCSAPIClient implements BCSAPI
 		try
 		{
 			log.debug ("Initialize BCSAPI connector");
-			connection = connectionFactory.getConnector ();
-			connection.start ();
+
+			connector.setSubscription ("alert", new Subscription ()
+				{
+					@Override
+					public void onMessage (byte[] bytes)
+					{
+						notifyAlertListeners (bytes);
+					}
+				});
+
+			connector.setSubscription ("transaction", new Subscription() {
+					@Override
+					public void onMessage (byte[] body)
+					{
+						notifyTransactionListeners (body);
+					}
+				});
+
+			connector.setSubscription ("trunk", new Subscription () {
+					@Override
+					public void onMessage (byte[] body)
+					{
+						notifyTrunkListeners (body);
+					}
+				});
+
+			connector.setSubscription ("reject", new Subscription ()
+				{
+					@Override
+					public void onMessage (byte[] body)
+					{
+						notifyRejectListeners (body);
+					}
+				});
+
+			connector.start ();
 		}
-		catch ( Exception e )
+		catch (Exception e)
 		{
 			log.error ("Can not create connector", e);
 		}
@@ -197,12 +114,12 @@ public class BCSAPIClient implements BCSAPI
 	{
 		try
 		{
-			if ( connection != null )
+			if ( connector != null )
 			{
-				connection.close ();
+				connector.close ();
 			}
 		}
-		catch ( Exception e )
+		catch (Exception ignored)
 		{
 		}
 	}
@@ -210,16 +127,12 @@ public class BCSAPIClient implements BCSAPI
 	@Override
 	public long ping (long nonce) throws BCSAPIException
 	{
-		try (ConnectorSession session = connection.createSession ())
+		try
 		{
-			log.trace ("ping " + nonce);
-
-			ConnectorMessage m = session.createMessage ();
 			BCSAPIMessage.Ping.Builder builder = BCSAPIMessage.Ping.newBuilder ();
 			builder.setNonce (nonce);
-			m.setPayload (builder.build ().toByteArray ());
-			ConnectorProducer pingProducer = session.createProducer (session.createQueue ("ping"));
-			byte[] response = synchronousRequest (session, pingProducer, m);
+
+			byte[] response = connector.request ("ping", builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
 			if ( response != null )
 			{
 				BCSAPIMessage.Ping echo = BCSAPIMessage.Ping.parseFrom (response);
@@ -230,7 +143,7 @@ public class BCSAPIClient implements BCSAPI
 				return echo.getNonce ();
 			}
 		}
-		catch ( ConnectorException | InvalidProtocolBufferException e )
+		catch (Connector4Exception | InvalidProtocolBufferException e)
 		{
 			throw new BCSAPIException (e);
 		}
@@ -241,36 +154,29 @@ public class BCSAPIClient implements BCSAPI
 	@Override
 	public void addAlertListener (final AlertListener alertListener) throws BCSAPIException
 	{
-		try
-		{
-			addTopicListener ("alert", alertListener, new ByteArrayMessageListener ()
-			{
-				@Override
-				public void onMessage (byte[] body)
-				{
-					BCSAPIMessage.Alert alert;
-					try
-					{
-						alert = BCSAPIMessage.Alert.parseFrom (body);
-						alertListener.alert (alert.getAlert (), alert.getSeverity ());
-					}
-					catch ( InvalidProtocolBufferException e )
-					{
-						log.error ("Message format error", e);
-					}
-				}
-			});
-		}
-		catch ( ConnectorException e )
-		{
-			throw new BCSAPIException (e);
-		}
+		alertListeners.add (alertListener);
 	}
 
 	@Override
 	public void removeAlertListener (AlertListener listener)
 	{
-		removeTopicListener ("alert", listener);
+		alertListeners.remove (listener);
+	}
+
+	private void notifyAlertListeners (byte[] bytes)
+	{
+		try
+		{
+			BCSAPIMessage.Alert alert = BCSAPIMessage.Alert.parseFrom (bytes);
+			for (AlertListener listener : alertListeners)
+			{
+				listener.alert (alert.getAlert (), alert.getSeverity ());
+			}
+		}
+		catch (InvalidProtocolBufferException e)
+		{
+			log.error ("Message format error", e);
+		}
 	}
 
 	@Override
@@ -280,20 +186,20 @@ public class BCSAPIClient implements BCSAPI
 		{
 			return production;
 		}
-		return production = getBlockHeader (new Hash("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")) != null;
+		return production = getBlockHeader (new Hash ("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")) != null;
 	}
 
 	@Override
 	public void scanTransactionsForAddresses (Set<Address> addresses, long after, TransactionListener listener) throws BCSAPIException
 	{
 		List<byte[]> al = new ArrayList<> (addresses.size ());
-		for ( Address a : addresses )
+		for (Address a : addresses)
 		{
 			try
 			{
 				al.add (a.getAddressScript ());
 			}
-			catch ( ValidationException e )
+			catch (ValidationException ignored)
 			{
 			}
 		}
@@ -304,13 +210,13 @@ public class BCSAPIClient implements BCSAPI
 	public void scanUTXOForAddresses (Set<Address> addresses, TransactionListener listener) throws BCSAPIException
 	{
 		List<byte[]> al = new ArrayList<> (addresses.size ());
-		for ( Address a : addresses )
+		for (Address a : addresses)
 		{
 			try
 			{
 				al.add (a.getAddressScript ());
 			}
-			catch ( ValidationException e )
+			catch (ValidationException ignored)
 			{
 			}
 		}
@@ -326,57 +232,34 @@ public class BCSAPIClient implements BCSAPI
 	private void scanRequest (Collection<byte[]> match, long after, final TransactionListener listener, String requestQueue)
 			throws BCSAPIException
 	{
-		try (ConnectorSession session = connection.createSession ())
+		BCSAPIMessage.ExactMatchRequest.Builder builder = BCSAPIMessage.ExactMatchRequest.newBuilder ();
+		for (byte[] d : match)
 		{
-			ConnectorMessage m = session.createMessage ();
-
-			ConnectorProducer exactMatchProducer = session.createProducer (session.createQueue (requestQueue));
-			BCSAPIMessage.ExactMatchRequest.Builder builder = BCSAPIMessage.ExactMatchRequest.newBuilder ();
-			for ( byte[] d : match )
-			{
-				builder.addMatch (ByteString.copyFrom (d));
-			}
-			if ( after != 0 )
-			{
-				builder.setAfter (after);
-			}
-			m.setPayload (builder.build ().toByteArray ());
-			final ConnectorTemporaryQueue answerQueue = session.createTemporaryQueue ();
-			final ConnectorConsumer consumer = session.createConsumer (answerQueue);
-			m.setReplyTo (answerQueue);
-			final Semaphore ready = new Semaphore (0);
-			consumer.setMessageListener (new ConnectorListener ()
-			{
-				@Override
-				public void onMessage (ConnectorMessage message)
-				{
-					try
-					{
-						byte[] body = message.getPayload ();
-						if ( body != null )
-						{
-							Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (body));
-							t.computeHash ();
-							listener.process (t);
-						}
-						else
-						{
-							consumer.close ();
-							answerQueue.delete ();
-							ready.release ();
-						}
-					}
-					catch ( ConnectorException | InvalidProtocolBufferException e )
-					{
-						log.error ("Malformed message received for scan matching transactions", e);
-					}
-				}
-			});
-
-			exactMatchProducer.send (m);
-			ready.acquireUninterruptibly ();
+			builder.addMatch (ByteString.copyFrom (d));
 		}
-		catch ( ConnectorException e )
+		if ( after != 0 )
+		{
+			builder.setAfter (after);
+		}
+
+		try
+		{
+			byte[][] response = connector.multipartRequest (requestQueue, builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
+			for (byte[] body : response)
+			{
+				try
+				{
+					Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (body));
+					t.computeHash ();
+					listener.process (t);
+				}
+				catch (InvalidProtocolBufferException e)
+				{
+					log.error ("Malformed message received for scan matching transactions", e);
+				}
+			}
+		}
+		catch (Connector4Exception e)
 		{
 			throw new BCSAPIException (e);
 		}
@@ -389,53 +272,31 @@ public class BCSAPIClient implements BCSAPI
 		{
 			master = master.getReadOnly ();
 		}
-		try (ConnectorSession session = connection.createSession ())
+
+		BCSAPIMessage.AccountRequest.Builder builder = BCSAPIMessage.AccountRequest.newBuilder ();
+		builder.setPublicKey (master.serialize (isProduction ()));
+		builder.setLookAhead (lookAhead);
+		builder.setAfter (after);
+		builder.setFirstIndex (firstIndex);
+
+		try
 		{
-			ConnectorMessage m = session.createMessage ();
-
-			ConnectorProducer scanAccountProducer = session.createProducer (session.createQueue (request));
-			BCSAPIMessage.AccountRequest.Builder builder = BCSAPIMessage.AccountRequest.newBuilder ();
-			builder.setPublicKey (master.serialize (isProduction ()));
-			builder.setLookAhead (lookAhead);
-			builder.setAfter (after);
-			m.setPayload (builder.build ().toByteArray ());
-
-			final ConnectorTemporaryQueue answerQueue = session.createTemporaryQueue ();
-			final ConnectorConsumer consumer = session.createConsumer (answerQueue);
-			m.setReplyTo (answerQueue);
-			final Semaphore ready = new Semaphore (0);
-			consumer.setMessageListener (new ConnectorListener ()
+			byte[][] response = connector.multipartRequest (request, builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
+			for (byte[] bytes : response)
 			{
-				@Override
-				public void onMessage (ConnectorMessage message)
+				try
 				{
-					try
-					{
-						byte[] body = message.getPayload ();
-						if ( body != null )
-						{
-							Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (body));
-							t.computeHash ();
-							listener.process (t);
-						}
-						else
-						{
-							consumer.close ();
-							answerQueue.delete ();
-							ready.release ();
-						}
-					}
-					catch ( ConnectorException | InvalidProtocolBufferException e )
-					{
-						log.error ("Malformed message received for account scan transactions", e);
-					}
+					Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (bytes));
+					t.computeHash ();
+					listener.process (t);
 				}
-			});
-
-			scanAccountProducer.send (m);
-			ready.acquireUninterruptibly ();
+				catch (InvalidProtocolBufferException e)
+				{
+					log.error ("Malformed message received for account scan transactions", e);
+				}
+			}
 		}
-		catch ( ConnectorException e )
+		catch (Connector4Exception e)
 		{
 			throw new BCSAPIException (e);
 		}
@@ -445,33 +306,30 @@ public class BCSAPIClient implements BCSAPI
 	public void catchUp (List<Hash> inventory, int limit, boolean headers, final TrunkListener listener) throws BCSAPIException
 	{
 		log.trace ("catchUp");
-		ConnectorMessage m;
-		try (ConnectorSession session = connection.createSession ())
-		{
-			ConnectorProducer transactionRequestProducer = session.createProducer (session.createQueue ("catchUpRequest"));
 
-			m = session.createMessage ();
-			BCSAPIMessage.CatchUpRequest.Builder builder = BCSAPIMessage.CatchUpRequest.newBuilder ();
-			builder.setLimit (limit);
-			builder.setHeaders (true);
-			for ( Hash hash : inventory )
-			{
-				builder.addInventory (ByteString.copyFrom (hash.toByteArray ()));
-			}
-			m.setPayload (builder.build ().toByteArray ());
-			byte[] response = synchronousRequest (session, transactionRequestProducer, m);
+		BCSAPIMessage.CatchUpRequest.Builder builder = BCSAPIMessage.CatchUpRequest.newBuilder ();
+		builder.setLimit (limit);
+		builder.setHeaders (true);
+		for (Hash hash : inventory)
+		{
+			builder.addInventory (ByteString.copyFrom (hash.toByteArray ()));
+		}
+
+		try
+		{
+			byte[] response = connector.request ("catchUpRequest", builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
 			if ( response != null )
 			{
 				BCSAPIMessage.TrunkUpdate blockMessage = BCSAPIMessage.TrunkUpdate.parseFrom (response);
 				List<Block> blockList = new ArrayList<> ();
-				for ( BCSAPIMessage.Block b : blockMessage.getAddedList () )
+				for (BCSAPIMessage.Block b : blockMessage.getAddedList ())
 				{
 					blockList.add (Block.fromProtobuf (b));
 				}
 				listener.trunkUpdate (blockList);
 			}
 		}
-		catch ( ConnectorException | InvalidProtocolBufferException e )
+		catch (Connector4Exception | InvalidProtocolBufferException e)
 		{
 			throw new BCSAPIException (e);
 		}
@@ -480,212 +338,153 @@ public class BCSAPIClient implements BCSAPI
 	@Override
 	public void registerTransactionListener (final TransactionListener listener) throws BCSAPIException
 	{
-		try
-		{
-			addTopicListener ("transaction", listener, new ByteArrayMessageListener ()
-			{
-				@Override
-				public void onMessage (byte[] body)
-				{
-					try
-					{
-						Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (body));
-						t.computeHash ();
-						listener.process (t);
-					}
-					catch ( Exception e )
-					{
-						log.debug ("Transaction message error", e);
-					}
-				}
-			});
-		}
-		catch ( ConnectorException e )
-		{
-			throw new BCSAPIException (e);
-		}
+		transactionListeners.add (listener);
 	}
 
 	@Override
 	public void removeTransactionListener (TransactionListener listener)
 	{
-		removeTopicListener ("transaction", listener);
+		transactionListeners.remove (listener);
+	}
+
+	private void notifyTransactionListeners (byte[] body)
+	{
+		try
+		{
+			Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (body));
+			t.computeHash ();
+			for (TransactionListener listener : transactionListeners)
+			{
+				listener.process(t);
+			}
+		}
+		catch (InvalidProtocolBufferException e)
+		{
+			log.debug ("Transaction message error", e);
+		}
 	}
 
 	@Override
 	public void registerTrunkListener (final TrunkListener listener) throws BCSAPIException
 	{
-		try
-		{
-			addTopicListener ("trunk", listener, new ByteArrayMessageListener ()
-			{
-				@Override
-				public void onMessage (byte[] body)
-				{
-					try
-					{
-						BCSAPIMessage.TrunkUpdate blockMessage = BCSAPIMessage.TrunkUpdate.parseFrom (body);
-						List<Block> blockList = new ArrayList<> ();
-						for ( BCSAPIMessage.Block b : blockMessage.getAddedList () )
-						{
-							blockList.add (Block.fromProtobuf (b));
-						}
-						listener.trunkUpdate (blockList);
-					}
-					catch ( Exception e )
-					{
-						log.debug ("Block message error", e);
-					}
-				}
-			});
-		}
-		catch ( ConnectorException e )
-		{
-			throw new BCSAPIException (e);
-		}
+		trunkListeners.add(listener);
 	}
 
 	@Override
 	public void removeTrunkListener (TrunkListener listener)
 	{
-		removeTopicListener ("trunk", listener);
+		trunkListeners.remove(listener);
 	}
 
-	private byte[] synchronousRequest (ConnectorSession session, ConnectorProducer producer, ConnectorMessage m) throws BCSAPIException
+
+	private void notifyTrunkListeners (byte[] body)
 	{
-		ConnectorTemporaryQueue answerQueue = null;
 		try
 		{
-			answerQueue = session.createTemporaryQueue ();
-			m.setReplyTo (answerQueue);
+			BCSAPIMessage.TrunkUpdate blockMessage = BCSAPIMessage.TrunkUpdate.parseFrom (body);
+			List<Block> blockList = new ArrayList<> ();
+			for (BCSAPIMessage.Block b : blockMessage.getAddedList ())
+			{
+				blockList.add (Block.fromProtobuf (b));
+			}
 
-			try (ConnectorConsumer consumer = session.createConsumer (answerQueue))
+			for (TrunkListener listener : trunkListeners)
 			{
-				producer.send (m);
-				ConnectorMessage reply = consumer.receive (timeout);
-				if ( reply == null )
-				{
-					throw new BCSAPIException ("timeout");
-				}
-				return reply.getPayload ();
+				listener.trunkUpdate (blockList);
 			}
 		}
-		catch (ConnectorException e)
+		catch (InvalidProtocolBufferException e)
 		{
-			throw new BCSAPIException (e);
-		}
-		finally
-		{
-			try
-			{
-				if ( answerQueue != null )
-				{
-					answerQueue.delete ();
-				}
-			}
-			catch (ConnectorException e)
-			{
-			}
+			log.debug ("Block message error", e);
 		}
 	}
 
 	@Override
 	public Transaction getTransaction (Hash hash) throws BCSAPIException
 	{
-		log.trace ("get transaction " + hash);
-		ConnectorMessage m;
-		try (ConnectorSession session = connection.createSession ())
+		try
 		{
-			ConnectorProducer transactionRequestProducer = session.createProducer (session.createQueue ("transactionRequest"));
+			log.trace ("get transaction " + hash);
 
-			m = session.createMessage ();
 			BCSAPIMessage.Hash.Builder builder = BCSAPIMessage.Hash.newBuilder ();
 			builder.addHash (ByteString.copyFrom (hash.toByteArray ()));
-			m.setPayload (builder.build ().toByteArray ());
-			byte[] response = synchronousRequest (session, transactionRequestProducer, m);
+
+			Transaction t = null;
+			byte[] response = connector.request ("transactionRequest", builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
 			if ( response != null )
 			{
-				Transaction t;
 				t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (response));
 				t.computeHash ();
 				return t;
 			}
+
+			return t;
 		}
-		catch ( ConnectorException | InvalidProtocolBufferException e )
+		catch (Connector4Exception | InvalidProtocolBufferException e)
 		{
 			throw new BCSAPIException (e);
 		}
 
-		return null;
 	}
 
 	@Override
 	public Block getBlock (Hash hash) throws BCSAPIException
 	{
-		try (ConnectorSession session = connection.createSession ())
+		try
 		{
 			log.trace ("get block " + hash);
 
-			ConnectorProducer blockRequestProducer = session.createProducer (session.createQueue ("blockRequest"));
-
-			ConnectorMessage m = session.createMessage ();
 			BCSAPIMessage.Hash.Builder builder = BCSAPIMessage.Hash.newBuilder ();
 			builder.addHash (ByteString.copyFrom (hash.toByteArray ()));
-			m.setPayload (builder.build ().toByteArray ());
-			byte[] response = synchronousRequest (session, blockRequestProducer, m);
+
+			byte[] response = connector.request ("blockRequest", builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
 			if ( response != null )
 			{
 				return Block.fromProtobuf (BCSAPIMessage.Block.parseFrom (response));
 			}
+
+			return null;
 		}
-		catch ( ConnectorException | InvalidProtocolBufferException e )
+		catch (Connector4Exception | InvalidProtocolBufferException e)
 		{
 			throw new BCSAPIException (e);
 		}
 
-		return null;
 	}
 
 	@Override
 	public Block getBlockHeader (Hash hash) throws BCSAPIException
 	{
-		try (ConnectorSession session = connection.createSession ())
+		try
 		{
 			log.trace ("get block header" + hash);
 
-			ConnectorProducer blockHeaderRequestProducer = session.createProducer (session.createQueue ("headerRequest"));
-
-			ConnectorMessage m = session.createMessage ();
 			BCSAPIMessage.Hash.Builder builder = BCSAPIMessage.Hash.newBuilder ();
 			builder.addHash (ByteString.copyFrom (hash.toByteArray ()));
-			m.setPayload (builder.build ().toByteArray ());
-			byte[] response = synchronousRequest (session, blockHeaderRequestProducer, m);
+
+			byte[] response = connector.request ("headerRequest", builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
 			if ( response != null )
 			{
 				return Block.fromProtobuf (BCSAPIMessage.Block.parseFrom (response));
 			}
+
+			return null;
 		}
-		catch ( ConnectorException | InvalidProtocolBufferException e )
+		catch (Connector4Exception | InvalidProtocolBufferException e)
 		{
 			throw new BCSAPIException (e);
 		}
-
-		return null;
 	}
 
 	@Override
 	public void sendTransaction (Transaction transaction) throws BCSAPIException
 	{
-		transaction.computeHash ();
-		try (ConnectorSession session = connection.createSession ())
+		try
 		{
+			transaction.computeHash ();
 			log.trace ("send transaction " + transaction.getHash ());
 
-			ConnectorProducer transactionProducer = session.createProducer (session.createTopic ("newTransaction"));
-
-			ConnectorMessage m = session.createMessage ();
-			m.setPayload (transaction.toProtobuf ().toByteArray ());
-			byte[] reply = synchronousRequest (session, transactionProducer, m);
+			byte[] reply = connector.request ("newTransaction", transaction.toProtobuf ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
 			if ( reply != null )
 			{
 				try
@@ -693,13 +492,13 @@ public class BCSAPIClient implements BCSAPI
 					BCSAPIMessage.ExceptionMessage em = BCSAPIMessage.ExceptionMessage.parseFrom (reply);
 					throw new BCSAPIException (em.getMessage (0));
 				}
-				catch ( InvalidProtocolBufferException e )
+				catch (InvalidProtocolBufferException e)
 				{
 					throw new BCSAPIException ("Invalid response", e);
 				}
 			}
 		}
-		catch ( ConnectorException e )
+		catch (Connector4Exception e)
 		{
 			throw new BCSAPIException (e);
 		}
@@ -708,14 +507,11 @@ public class BCSAPIClient implements BCSAPI
 	@Override
 	public void sendBlock (Block block) throws BCSAPIException
 	{
-		try (ConnectorSession session = connection.createSession ())
+		try
 		{
 			log.trace ("send block " + block.getHash ());
-			ConnectorProducer blockProducer = session.createProducer (session.createTopic ("newBlock"));
 
-			ConnectorMessage m = session.createMessage ();
-			m.setPayload (block.toProtobuf ().toByteArray ());
-			byte[] reply = synchronousRequest (session, blockProducer, m);
+			byte[] reply = connector.request ("newBlock", block.toProtobuf ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
 			if ( reply != null )
 			{
 				try
@@ -723,13 +519,13 @@ public class BCSAPIClient implements BCSAPI
 					BCSAPIMessage.ExceptionMessage em = BCSAPIMessage.ExceptionMessage.parseFrom (reply);
 					throw new BCSAPIException (em.getMessage (0));
 				}
-				catch ( InvalidProtocolBufferException e )
+				catch (InvalidProtocolBufferException e)
 				{
 					throw new BCSAPIException ("Invalid response", e);
 				}
 			}
 		}
-		catch ( ConnectorException e )
+		catch (Connector4Exception e)
 		{
 			throw new BCSAPIException (e);
 		}
@@ -738,35 +534,29 @@ public class BCSAPIClient implements BCSAPI
 	@Override
 	public void registerRejectListener (final RejectListener rejectListener) throws BCSAPIException
 	{
-		try
-		{
-			addTopicListener ("reject", rejectListener, new ByteArrayMessageListener ()
-			{
-				@Override
-				public void onMessage (byte[] body)
-				{
-					try
-					{
-						BCSAPIMessage.Reject reject = BCSAPIMessage.Reject.parseFrom (body);
-						rejectListener.rejected (reject.getCommand (), new Hash (reject.getHash ().toByteArray ()), reject.getReason (),
-								reject.getRejectCode ());
-					}
-					catch ( Exception e )
-					{
-						log.debug ("Transaction message error", e);
-					}
-				}
-			});
-		}
-		catch ( ConnectorException e )
-		{
-			throw new BCSAPIException (e);
-		}
+		rejectListeners.add(rejectListener);
 	}
 
 	@Override
 	public void removeRejectListener (RejectListener rejectListener)
 	{
-		removeTopicListener ("reject", rejectListener);
+		rejectListeners.remove (rejectListener);
+	}
+
+	private void notifyRejectListeners (byte[] body)
+	{
+		try
+		{
+			BCSAPIMessage.Reject reject = BCSAPIMessage.Reject.parseFrom (body);
+			for (RejectListener listener : rejectListeners)
+			{
+				listener.rejected (reject.getCommand (), new Hash (reject.getHash ().toByteArray ()), reject.getReason (),
+				                   reject.getRejectCode ());
+			}
+		}
+		catch (InvalidProtocolBufferException e)
+		{
+			log.debug ("Transaction message error", e);
+		}
 	}
 }
