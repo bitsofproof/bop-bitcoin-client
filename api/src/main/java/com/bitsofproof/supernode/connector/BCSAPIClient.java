@@ -52,6 +52,15 @@ public class BCSAPIClient implements BCSAPI
 
 	private final CopyOnWriteArrayList<TrunkListener> trunkListeners = new CopyOnWriteArrayList<> ();
 
+	public BCSAPIClient ()
+	{
+	}
+
+	public BCSAPIClient (Connector4 connector)
+	{
+		this.connector = connector;
+	}
+
 	public void setTimeout (long timeout)
 	{
 		this.timeout = timeout;
@@ -77,13 +86,14 @@ public class BCSAPIClient implements BCSAPI
 					}
 				});
 
-			connector.setSubscription ("transaction", new Subscription() {
-					@Override
-					public void onMessage (byte[] body)
-					{
-						notifyTransactionListeners (body);
-					}
-				});
+			connector.setSubscription ("transaction", new Subscription ()
+			{
+				@Override
+				public void onMessage (byte[] body)
+				{
+					notifyTransactionListeners (body);
+				}
+			});
 
 			connector.setSubscription ("trunk", new Subscription () {
 					@Override

@@ -38,18 +38,18 @@ public class JMSConnector implements Connector4
 			this.connection = connectionFactory.createConnection ();
 			Session session = connection.createSession (false, Session.AUTO_ACKNOWLEDGE);
 
+			this.consumerProducerCache = new ConsumerProducerCache (session, destinations);
 			this.responseQueue = session.createTemporaryQueue ();
+			this.responseWorker = new ResponseWorker (connection, destinations);
+
 
 			this.requestHandlerExecutor = requestHandlerExecutor;
 			this.requestSenderExecutor = requestSenderExecutor;
 			this.destinations = destinations;
-			this.consumerProducerCache = new ConsumerProducerCache (session, destinations);
-
-			this.responseWorker = new ResponseWorker (connection, destinations);
 		}
 		catch (JMSException e)
 		{
-			throw new Connector4Exception (e);
+			throw new Connector4Exception(e);
 		}
 	}
 
@@ -651,7 +651,6 @@ public class JMSConnector implements Connector4
 			do
 			{
 				Message response = responseConsumer.receive (TimeUnit.SECONDS.toMillis (2));
-				// TODO replace Preconditions with Connector4Exception
 				if ( response instanceof BytesMessage )
 				{
 					bm = (BytesMessage) response;
