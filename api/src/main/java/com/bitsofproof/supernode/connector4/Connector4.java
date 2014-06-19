@@ -14,11 +14,11 @@ public interface Connector4 extends AutoCloseable
 
 	byte[] request(String queue, byte[] request) throws Connector4Exception;
 
-	byte[][] multipartRequest(String queue, byte[] request) throws Connector4Exception;
+	void multipartRequest(String queue, byte[] request, MultipartResponseHandler responseHandler) throws Connector4Exception;
 
 	byte[] request(String queue, byte[] request, long timeout, TimeUnit unit) throws Connector4Exception;
 
-	byte[][] multipartRequest(String queue, byte[] request, long timeout, TimeUnit unit) throws Connector4Exception;
+	void multipartRequest (String queue, byte[] request, long timeout, TimeUnit unit, MultipartResponseHandler responseHandler) throws Connector4Exception;
 
 	void close() throws Connector4Exception;
 

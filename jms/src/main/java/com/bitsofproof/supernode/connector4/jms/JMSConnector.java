@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.jms.*;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -49,7 +48,7 @@ public class JMSConnector implements Connector4
 		}
 		catch (JMSException e)
 		{
-			throw new Connector4Exception(e);
+			throw new Connector4Exception (e);
 		}
 	}
 
@@ -148,13 +147,14 @@ public class JMSConnector implements Connector4
 	}
 
 	@Override
-	public byte[][] multipartRequest (String queue, byte[] request) throws Connector4Exception
+	public void multipartRequest (String queue, byte[] request, MultipartResponseHandler responseHandler) throws Connector4Exception
 	{
-		return multipartRequest (queue, request, 0, TimeUnit.MILLISECONDS);
+		multipartRequest (queue, request, 0, TimeUnit.MILLISECONDS, responseHandler);
 	}
 
 	@Override
-	public byte[][] multipartRequest (String queue, byte[] request, long timeout, TimeUnit unit) throws Connector4Exception
+	public void multipartRequest (String queue, byte[] request, long timeout, TimeUnit unit, MultipartResponseHandler responseHandler) throws
+	                                                                                                                                   Connector4Exception
 	{
 		Destination destination = destinations.get (queue);
 		if ( destination == null )
@@ -162,10 +162,11 @@ public class JMSConnector implements Connector4
 			throw new Connector4Exception ("Unknown destination");
 		}
 
-		return executeRequest (new MultipartResponseRequestSenderTask (connection,
-		                                                               responseQueue,
-		                                                               new OutputMessage (request, UUID.randomUUID ().toString (), destination),
-		                                                               timeout, unit));
+		executeRequest (new MultipartResponseRequestSenderTask (connection,
+		                                                        responseQueue,
+		                                                        new OutputMessage (request, UUID.randomUUID ().toString (), destination),
+		                                                        responseHandler,
+		                                                        timeout, unit));
 	}
 
 	@Override
@@ -580,14 +581,28 @@ public class JMSConnector implements Connector4
 
 			MessageProducer producer = session.createProducer (request.destination);
 			producer.send (message);
+			producer.close ();
 
-			return handleResponse (responseConsumer);
+			T result = handleResponse (responseConsumer);
+			responseConsumer.close ();
+			return result;
 		}
 
 		protected abstract T handleResponse (MessageConsumer responseConsumer) throws JMSException, Connector4Exception;
 
-		protected byte[] toBytes (BytesMessage bm) throws Connector4Exception, JMSException
+		protected byte[] toBytes (Message message) throws Connector4Exception, JMSException
 		{
+			if ( message == null )
+			{
+				throw new ConnectorTimeoutException ("Response timed out");
+			}
+			if ( !(message instanceof BytesMessage) )
+			{
+				throw new Connector4Exception ("Unable to handle message " + message);
+			}
+
+			BytesMessage bm = (BytesMessage) message;
+
 			long len = bm.getBodyLength ();
 			if ( len == 0 )
 			{
@@ -619,60 +634,79 @@ public class JMSConnector implements Connector4
 		protected byte[] handleResponse (MessageConsumer responseConsumer) throws JMSException, Connector4Exception
 		{
 			Message response = responseConsumer.receive (timeout);
-			if ( response == null )
-			{
-				throw new Connector4Exception ("Response timed out");
-			}
-			else if ( response instanceof BytesMessage )
-			{
-				return toBytes ((BytesMessage) response);
-			}
-			else
-			{
-				throw new Connector4Exception ("Unable to handle message " + response);
-			}
+
+			return toBytes (response);
 		}
 	}
 
-	private static class MultipartResponseRequestSenderTask extends RequestSenderTask<byte[][]>
+	private static class MultipartResponseRequestSenderTask extends RequestSenderTask<Void> implements MessageListener
 	{
 
-		MultipartResponseRequestSenderTask (Connection connection, Destination responseTo, OutputMessage request, long timeout, TimeUnit unit)
+		private final CountDownLatch latch;
+
+		private final MultipartResponseHandler responseHandler;
+
+		private MessageConsumer responseConsumer;
+
+		MultipartResponseRequestSenderTask (Connection connection,
+		                                    Destination responseTo,
+		                                    OutputMessage request,
+		                                    MultipartResponseHandler responseHandler,
+		                                    long timeout, TimeUnit unit)
 		{
 			super (connection, responseTo, request, timeout, unit);
+			this.responseHandler = responseHandler;
+			this.latch = new CountDownLatch (1);
 		}
 
 		@Override
-		protected byte[][] handleResponse (MessageConsumer responseConsumer) throws JMSException, Connector4Exception
+		protected Void handleResponse (MessageConsumer responseConsumer) throws JMSException, Connector4Exception
 		{
-			ArrayList<BytesMessage> responses = new ArrayList<> ();
-
-			BytesMessage bm;
-			do
+			try
 			{
-				Message response = responseConsumer.receive (TimeUnit.SECONDS.toMillis (2));
-				if ( response instanceof BytesMessage )
+				this.responseConsumer = responseConsumer;
+				responseConsumer.setMessageListener (this);
+
+				latch.await (5, TimeUnit.SECONDS);
+			}
+			catch (InterruptedException ignored)
+			{
+			}
+
+			return null;
+		}
+
+		@Override
+		public void onMessage (Message message)
+		{
+			try
+			{
+				if ( message instanceof BytesMessage )
 				{
-					bm = (BytesMessage) response;
-					if ( bm.getBodyLength () != 0 )
+					BytesMessage bm = (BytesMessage) message;
+					if ( bm.getBodyLength () == 0 )
 					{
-						responses.add (bm);
+						responseHandler.eof ();
+					}
+					else
+					{
+						responseHandler.part (toBytes (bm));
 					}
 				}
 				else
 				{
-					throw new Connector4Exception ("Invalid JMS message");
+					log.error ("Invalid message");
 				}
 
-			} while (bm.getBodyLength () != 0);
-
-			byte[][] result = new byte[responses.size ()][];
-			for (int i = 0; i < responses.size (); i++)
-			{
-				result[i] = toBytes (responses.get (i));
 			}
-
-			return result;
+			catch (Connector4Exception e)
+			{
+				log.error("Invalid multipart message", e);
+			}
+			catch (JMSException e)
+			{
+				log.error("JMS Error while receiving multipart message", e);
+			}
 		}
 	}
 

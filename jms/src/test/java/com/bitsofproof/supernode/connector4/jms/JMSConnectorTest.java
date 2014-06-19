@@ -20,7 +20,6 @@ import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-// TODO test response where the response byte[] should be null
 public class JMSConnectorTest
 {
 	private BrokerService broker;
@@ -179,17 +178,25 @@ public class JMSConnectorTest
 		for (int i = 0; i < 100; i++)
 		{
 			final String request = "message" + i;
+			final List<String> result = new ArrayList<> ();
 			results.add (requestExecutor.submit (new Callable<String> ()
 			{
 				@Override
 				public String call () throws Exception
 				{
-					byte[][] response = clientConnector.multipartRequest ("requestQueue", request.getBytes ());
-					List<String> result = new ArrayList<> ();
-					for (byte[] bytes : response)
+					clientConnector.multipartRequest ("requestQueue", request.getBytes (), new MultipartResponseHandler ()
 					{
-						result.add (new String (bytes));
-					}
+						@Override
+						public void part (byte[] bytes)
+						{
+							result.add (new String (bytes));
+						}
+
+						@Override
+						public void eof ()
+						{
+						}
+					});
 					return String.format ("%s|%s", request, Joiner.on (',').join (result));
 				}
 			}));

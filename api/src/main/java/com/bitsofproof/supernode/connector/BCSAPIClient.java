@@ -21,6 +21,7 @@ import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.ValidationException;
 import com.bitsofproof.supernode.connector4.Connector4;
 import com.bitsofproof.supernode.connector4.Connector4Exception;
+import com.bitsofproof.supernode.connector4.MultipartResponseHandler;
 import com.bitsofproof.supernode.connector4.Subscription;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -78,13 +79,13 @@ public class BCSAPIClient implements BCSAPI
 			log.debug ("Initialize BCSAPI connector");
 
 			connector.setSubscription ("alert", new Subscription ()
+			{
+				@Override
+				public void onMessage (byte[] bytes)
 				{
-					@Override
-					public void onMessage (byte[] bytes)
-					{
-						notifyAlertListeners (bytes);
-					}
-				});
+					notifyAlertListeners (bytes);
+				}
+			});
 
 			connector.setSubscription ("transaction", new Subscription ()
 			{
@@ -95,22 +96,23 @@ public class BCSAPIClient implements BCSAPI
 				}
 			});
 
-			connector.setSubscription ("trunk", new Subscription () {
-					@Override
-					public void onMessage (byte[] body)
-					{
-						notifyTrunkListeners (body);
-					}
-				});
+			connector.setSubscription ("trunk", new Subscription ()
+			{
+				@Override
+				public void onMessage (byte[] body)
+				{
+					notifyTrunkListeners (body);
+				}
+			});
 
 			connector.setSubscription ("reject", new Subscription ()
+			{
+				@Override
+				public void onMessage (byte[] body)
 				{
-					@Override
-					public void onMessage (byte[] body)
-					{
-						notifyRejectListeners (body);
-					}
-				});
+					notifyRejectListeners (body);
+				}
+			});
 
 			connector.start ();
 		}
@@ -254,20 +256,28 @@ public class BCSAPIClient implements BCSAPI
 
 		try
 		{
-			byte[][] response = connector.multipartRequest (requestQueue, builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
-			for (byte[] body : response)
+			connector.multipartRequest (requestQueue, builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS, new MultipartResponseHandler ()
 			{
-				try
+				@Override
+				public void part (byte[] bytes)
 				{
-					Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (body));
-					t.computeHash ();
-					listener.process (t);
+					try
+					{
+						Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (bytes));
+						t.computeHash ();
+						listener.process (t);
+					}
+					catch (InvalidProtocolBufferException e)
+					{
+						log.error ("Malformed message received for scan matching transactions", e);
+					}
 				}
-				catch (InvalidProtocolBufferException e)
+
+				@Override
+				public void eof ()
 				{
-					log.error ("Malformed message received for scan matching transactions", e);
 				}
-			}
+			});
 		}
 		catch (Connector4Exception e)
 		{
@@ -291,20 +301,28 @@ public class BCSAPIClient implements BCSAPI
 
 		try
 		{
-			byte[][] response = connector.multipartRequest (request, builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS);
-			for (byte[] bytes : response)
+			connector.multipartRequest (request, builder.build ().toByteArray (), timeout, TimeUnit.MILLISECONDS, new MultipartResponseHandler ()
 			{
-				try
+				@Override
+				public void part (byte[] bytes)
 				{
-					Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (bytes));
-					t.computeHash ();
-					listener.process (t);
+					try
+					{
+						Transaction t = Transaction.fromProtobuf (BCSAPIMessage.Transaction.parseFrom (bytes));
+						t.computeHash ();
+						listener.process (t);
+					}
+					catch (InvalidProtocolBufferException e)
+					{
+						log.error ("Malformed message received for account scan transactions", e);
+					}
 				}
-				catch (InvalidProtocolBufferException e)
+
+				@Override
+				public void eof ()
 				{
-					log.error ("Malformed message received for account scan transactions", e);
 				}
-			}
+			});
 		}
 		catch (Connector4Exception e)
 		{
@@ -365,7 +383,7 @@ public class BCSAPIClient implements BCSAPI
 			t.computeHash ();
 			for (TransactionListener listener : transactionListeners)
 			{
-				listener.process(t);
+				listener.process (t);
 			}
 		}
 		catch (InvalidProtocolBufferException e)
@@ -377,13 +395,13 @@ public class BCSAPIClient implements BCSAPI
 	@Override
 	public void registerTrunkListener (final TrunkListener listener) throws BCSAPIException
 	{
-		trunkListeners.add(listener);
+		trunkListeners.add (listener);
 	}
 
 	@Override
 	public void removeTrunkListener (TrunkListener listener)
 	{
-		trunkListeners.remove(listener);
+		trunkListeners.remove (listener);
 	}
 
 
@@ -544,7 +562,7 @@ public class BCSAPIClient implements BCSAPI
 	@Override
 	public void registerRejectListener (final RejectListener rejectListener) throws BCSAPIException
 	{
-		rejectListeners.add(rejectListener);
+		rejectListeners.add (rejectListener);
 	}
 
 	@Override
