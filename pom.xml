@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.bitsofproof</groupId>
 	<artifactId>bop-bitcoin-client</artifactId>
-	<version>3.6.0-SNAPSHOT</version>
+	<version>3.6.0</version>
 	<name>bop-bitcoin-client</name>
 	<description>The BOP Bitcoin Client Libraries</description>
 	<packaging>pom</packaging>
@@ -47,7 +47,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<slf4j.version>1.6.6</slf4j.version>
-		<java.compiler.version>1.7</java.compiler.version>
+		<java.compiler.version>1.8</java.compiler.version>
 		<bouncycastle.version>1.50</bouncycastle.version>
 		<protobuf.version>2.5.0</protobuf.version>
 		<activemq.version>5.8.0</activemq.version>
