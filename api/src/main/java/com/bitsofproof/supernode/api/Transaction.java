@@ -661,13 +661,13 @@ public class Transaction implements Serializable, Cloneable
 	@Override
 	public int hashCode ()
 	{
-		return hash.hashCode ();
+		return getHash().hashCode ();
 	}
 
 	@Override
 	public boolean equals (Object obj)
 	{
-		return hash.equals (((Transaction) obj).getHash ());
+		return getHash().equals (((Transaction) obj).getHash ());
 	}
 
 }
