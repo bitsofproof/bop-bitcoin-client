@@ -16,6 +16,7 @@
 package com.bitsofproof.supernode.api;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.WireFormat;
@@ -28,10 +29,66 @@ public class TransactionInput implements Serializable, Cloneable
 {
 	private static final long serialVersionUID = -7019826355856117874L;
 
+	public static Builder create()
+	{
+		return new Builder();
+	}
+
+	public static final class Builder
+	{
+		private String sourceHash;
+		private long ix;
+		private long sequence = 0xFFFFFFFFL;
+		private byte[] script;
+
+		public Builder sourceHash(String sourceHash)
+		{
+			this.sourceHash = sourceHash;
+			return this;
+		}
+
+		public Builder ix(long ix)
+		{
+			this.ix = ix;
+			return this;
+		}
+
+		public Builder sequence(long sequence)
+		{
+			this.sequence = sequence;
+			return this;
+		}
+
+		public Builder script(byte[] script)
+		{
+			this.script = script;
+			return this;
+		}
+
+		public TransactionInput build()
+		{
+			Objects.requireNonNull(script, "TransactionInput script must not be null");
+
+			return new TransactionInput(sourceHash, ix, sequence, script);
+		}
+	}
+
 	private String sourceHash;
 	private long ix;
 	private long sequence = 0xFFFFFFFFL;
 	private byte[] script;
+
+	public TransactionInput ()
+	{
+	}
+
+	public TransactionInput(String sourceHash, long ix, long sequence, byte[] script)
+	{
+		this.sourceHash = sourceHash;
+		this.ix = ix;
+		this.sequence = sequence;
+		this.script = script;
+	}
 
 	/**
 	 * Referenced transaction

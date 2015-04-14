@@ -18,9 +18,7 @@ package com.bitsofproof.supernode.api;
 import java.io.Serializable;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import com.bitsofproof.supernode.common.ByteUtils;
 import com.bitsofproof.supernode.common.Hash;
@@ -34,6 +32,65 @@ import com.google.protobuf.ByteString;
  */
 public class Transaction implements Serializable, Cloneable
 {
+	public static Builder create()
+	{
+		return new Builder();
+	}
+
+	public static class Builder
+	{
+		private long version = 1;
+
+		private long lockTime = 0;
+
+		private List<TransactionInput> inputs;
+		private List<TransactionOutput> outputs;
+
+		public Builder inputs(Iterable<TransactionInput> inputs)
+		{
+			inputs.forEach(this.inputs::add);
+			return this;
+		}
+
+		public Builder inputs(TransactionInput... inputs)
+		{
+			this.inputs = Arrays.asList(inputs);
+			return this;
+		}
+
+		public Builder outputs(Iterable<TransactionOutput> outputs)
+		{
+			outputs.forEach(this.outputs::add);
+			return this;
+		}
+
+		public Builder outputs(TransactionOutput... outputs)
+		{
+			this.outputs = Arrays.asList(outputs);
+			return this;
+		}
+
+		public Builder version(long v)
+		{
+			version = v;
+			return this;
+		}
+
+		public Builder lockTime(long lt)
+		{
+			lockTime = lt;
+			return this;
+		}
+
+		public Transaction build()
+		{
+			Objects.requireNonNull(inputs, "Transaction must have inputs");
+			Objects.requireNonNull(outputs, "Transaction must have outputs");
+
+			return new Transaction(version, lockTime, inputs, outputs);
+		}
+	}
+
 	private static final long serialVersionUID = 690918485496086537L;
 
 	private long version = 1;
@@ -54,12 +111,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * create a coin base transaction crediting the given address with a value and block height This is used in automated tests only.
-	 * 
-	 * @param address
-	 * @param value
-	 * @param blockHeight
-	 * @return
-	 * @throws ValidationException
 	 */
 	public static Transaction createCoinbase (Address address, long value, int blockHeight) throws ValidationException
 	{
@@ -87,6 +138,21 @@ public class Transaction implements Serializable, Cloneable
 		return cb;
 	}
 
+	public Transaction()
+	{
+	}
+
+	public Transaction(long version,
+					   long lockTime,
+					   List<TransactionInput> inputs,
+					   List<TransactionOutput> outputs)
+	{
+		this.version = version;
+		this.lockTime = lockTime;
+		this.inputs = inputs;
+		this.outputs = outputs;
+	}
+
 	/**
 	 * get transaction version
 	 * 
@@ -100,8 +166,6 @@ public class Transaction implements Serializable, Cloneable
 	/**
 	 * get hash of the block this transaction is embedded into. Note that this is not part of the protocol, but is filled by the server while retrieving a
 	 * transaction in context of a block A transaction alone might not have this filled.
-	 * 
-	 * @return
 	 */
 	public String getBlockHash ()
 	{
@@ -110,8 +174,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * Set the block hash this transaction is in
-	 * 
-	 * @param blockHash
 	 */
 	public void setBlockHash (String blockHash)
 	{
@@ -120,8 +182,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * Set transaction version
-	 * 
-	 * @param version
 	 */
 	public void setVersion (long version)
 	{
@@ -133,8 +193,6 @@ public class Transaction implements Serializable, Cloneable
 	 * epoch if >= 500000000
 	 * 
 	 * This is only relevant if sequence number is not 0xffffffff (final)
-	 * 
-	 * @return
 	 */
 	public long getLockTime ()
 	{
@@ -146,8 +204,6 @@ public class Transaction implements Serializable, Cloneable
 	 * Unix epoch if >= 500000000
 	 * 
 	 * This is only relevant if sequence number is not 0xffffffff (final)
-	 * 
-	 * @return
 	 */
 	public void setLockTime (long lockTime)
 	{
@@ -157,8 +213,6 @@ public class Transaction implements Serializable, Cloneable
 	/**
 	 * get the time stamp of the block containing this transaction. Note that this is not part of the protocol but filled by the server if the transaction is
 	 * retrieved in the context of a block
-	 * 
-	 * @return
 	 */
 	public long getBlocktime ()
 	{
@@ -168,8 +222,6 @@ public class Transaction implements Serializable, Cloneable
 	/**
 	 * set the time stamp of the block containing this transaction. Note that this is not part of the protocol but filled by the server if the transaction is
 	 * retrieved in the context of a block
-	 * 
-	 * @return
 	 */
 	public void setBlocktime (long blocktime)
 	{
@@ -211,8 +263,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * set the transaction hash to an arbirtary value
-	 * 
-	 * @param hash
 	 */
 	public void setHash (String hash)
 	{
@@ -221,8 +271,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * get the transaction inputs
-	 * 
-	 * @return
 	 */
 	public List<TransactionInput> getInputs ()
 	{
@@ -231,8 +279,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * set the transaction inputs
-	 * 
-	 * @param inputs
 	 */
 	public void setInputs (List<TransactionInput> inputs)
 	{
@@ -241,8 +287,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * get transaction outputs
-	 * 
-	 * @return
 	 */
 	public List<TransactionOutput> getOutputs ()
 	{
@@ -251,8 +295,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * set transaction outputs
-	 * 
-	 * @param outputs
 	 */
 	public void setOutputs (List<TransactionOutput> outputs)
 	{
@@ -261,8 +303,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * a flag set by the server if this transaction was removed from memory pool because it was not included into a block for longer than the set timeout.
-	 * 
-	 * @return
 	 */
 	public boolean isExpired ()
 	{
@@ -271,8 +311,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * set expiry flag on transaction
-	 * 
-	 * @param expired
 	 */
 	public void setExpired (boolean expired)
 	{
@@ -281,8 +319,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * an other transaction hash set by the server if that other transaction double spent inputs of this.
-	 * 
-	 * @return
 	 */
 	public String getOffendingTx ()
 	{
@@ -291,8 +327,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * an other transaction hash set by the server if that other transaction double spent inputs of this.
-	 * 
-	 * @param offendingTx
 	 */
 	public void setOffendingTx (String offendingTx)
 	{
@@ -301,8 +335,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * Block height this transaction is included into, set by the server is available
-	 * 
-	 * @return
 	 */
 	public int getHeight ()
 	{
@@ -311,8 +343,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * Block height this transaction is included into, set by the server is available
-	 * 
-	 * @param height
 	 */
 	public void setHeight (int height)
 	{
@@ -321,8 +351,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * write the transaction to a wire format writer
-	 * 
-	 * @param writer
 	 */
 	public void toWire (WireFormat.Writer writer)
 	{
@@ -358,9 +386,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * Recreate a transaction object from a wire format reader
-	 * 
-	 * @param reader
-	 * @return
 	 */
 	public static Transaction fromWire (WireFormat.Reader reader)
 	{
@@ -399,16 +424,13 @@ public class Transaction implements Serializable, Cloneable
 
 		t.lockTime = reader.readUint32 ();
 
-		t.hash = reader.hash (cursor, reader.getCursor () - cursor).toString ();
+		t.hash = reader.hash (cursor, reader.getCursor () - cursor).toString();
 
 		return t;
 	}
 
 	/**
 	 * Recreate a transaction object from a wire format dump in hexadecimal format
-	 * 
-	 * @param dump
-	 * @return
 	 */
 	public static Transaction fromWireDump (String dump)
 	{
@@ -417,8 +439,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * dump the transaction in wire format to a hexadecimal string
-	 * 
-	 * @return
 	 */
 	public String toWireDump ()
 	{
@@ -463,8 +483,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * Create a protobuf message for the transaction as used to communicate with the server.
-	 * 
-	 * @return
 	 */
 	public BCSAPIMessage.Transaction toProtobuf ()
 	{
@@ -487,7 +505,7 @@ public class Transaction implements Serializable, Cloneable
 		}
 		if ( blockHash != null )
 		{
-			builder.setBlock (ByteString.copyFrom (new Hash (blockHash).toByteArray ()));
+			builder.setBlock (ByteString.copyFrom (new Hash (blockHash).toByteArray()));
 		}
 		if ( expired )
 		{
@@ -506,9 +524,6 @@ public class Transaction implements Serializable, Cloneable
 
 	/**
 	 * Recreate the transaction object from a protobuf message
-	 * 
-	 * @param pt
-	 * @return
 	 */
 	public static Transaction fromProtobuf (BCSAPIMessage.Transaction pt)
 	{
@@ -520,7 +535,7 @@ public class Transaction implements Serializable, Cloneable
 			transaction.setInputs (new ArrayList<TransactionInput> ());
 			for ( BCSAPIMessage.TransactionInput i : pt.getInputsList () )
 			{
-				transaction.getInputs ().add (TransactionInput.fromProtobuf (i));
+				transaction.getInputs ().add(TransactionInput.fromProtobuf(i));
 			}
 		}
 
@@ -529,7 +544,7 @@ public class Transaction implements Serializable, Cloneable
 			transaction.setOutputs (new ArrayList<TransactionOutput> ());
 			for ( BCSAPIMessage.TransactionOutput o : pt.getOutputsList () )
 			{
-				transaction.getOutputs ().add (TransactionOutput.fromProtobuf (o));
+				transaction.getOutputs ().add(TransactionOutput.fromProtobuf(o));
 			}
 		}
 		if ( pt.hasBlock () )
@@ -594,7 +609,7 @@ public class Transaction implements Serializable, Cloneable
 
 		if ( (hashType & 0x1f) == ScriptFormat.SIGHASH_NONE )
 		{
-			copy.getOutputs ().clear ();
+			copy.getOutputs ().clear();
 			i = 0;
 			for ( TransactionInput in : copy.getInputs () )
 			{
@@ -608,20 +623,20 @@ public class Transaction implements Serializable, Cloneable
 		else if ( (hashType & 0x1f) == ScriptFormat.SIGHASH_SINGLE )
 		{
 			int onr = inr;
-			if ( onr >= copy.getOutputs ().size () )
+			if ( onr >= copy.getOutputs ().size() )
 			{
 				// this is a Satoshi client bug.
 				// This case should throw an error but it instead retuns 1 that is not checked and interpreted as below
 				return ByteUtils.fromHex ("0100000000000000000000000000000000000000000000000000000000000000");
 			}
-			for ( i = copy.getOutputs ().size () - 1; i > onr; --i )
+			for ( i = copy.getOutputs ().size() - 1; i > onr; --i )
 			{
-				copy.getOutputs ().remove (i);
+				copy.getOutputs ().remove(i);
 			}
 			for ( i = 0; i < onr; ++i )
 			{
-				copy.getOutputs ().get (i).setScript (new byte[0]);
-				copy.getOutputs ().get (i).setValue (-1L);
+				copy.getOutputs ().get(i).setScript (new byte[0]);
+				copy.getOutputs ().get(i).setValue (-1L);
 			}
 			i = 0;
 			for ( TransactionInput in : copy.getInputs () )
@@ -636,8 +651,8 @@ public class Transaction implements Serializable, Cloneable
 		if ( (hashType & ScriptFormat.SIGHASH_ANYONECANPAY) != 0 )
 		{
 			List<TransactionInput> oneIn = new ArrayList<> ();
-			oneIn.add (copy.getInputs ().get (inr));
-			copy.setInputs (oneIn);
+			oneIn.add(copy.getInputs().get(inr));
+			copy.setInputs(oneIn);
 		}
 
 		WireFormat.Writer writer = new WireFormat.Writer ();
@@ -661,13 +676,13 @@ public class Transaction implements Serializable, Cloneable
 	@Override
 	public int hashCode ()
 	{
-		return getHash().hashCode ();
+		return getHash().hashCode();
 	}
 
 	@Override
 	public boolean equals (Object obj)
 	{
-		return getHash().equals (((Transaction) obj).getHash ());
+		return getHash().equals(((Transaction) obj).getHash());
 	}
 
 }
