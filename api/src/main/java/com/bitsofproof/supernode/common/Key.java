@@ -19,19 +19,19 @@ import com.bitsofproof.supernode.api.Address;
 
 public interface Key extends Cloneable
 {
-	public byte[] getPrivate ();
+	byte[] getPrivate ();
 
-	public byte[] getPublic ();
+	byte[] getPublic ();
 
-	public Address getAddress ();
+	Address getAddress ();
 
-	public boolean isCompressed ();
+	boolean isCompressed ();
 
-	public Key getReadOnly ();
+	Key getReadOnly ();
 
-	public Key clone () throws CloneNotSupportedException;
+	Key clone () throws CloneNotSupportedException;
 
-	public byte[] sign (byte[] data) throws ValidationException;
+	byte[] sign (byte[] data) throws ValidationException;
 
-	public boolean verify (byte[] data, byte[] signature);
+	boolean verify (byte[] data, byte[] signature);
 }
