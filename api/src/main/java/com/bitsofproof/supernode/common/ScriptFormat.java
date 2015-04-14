@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
 
@@ -177,6 +178,12 @@ public class ScriptFormat
 			this.op = op;
 			data = null;
 		}
+
+		public String toString()
+		{
+			if (data == null) return op.toString();
+			else return op.toString() + ": " + Arrays.toString(data);
+		}
 	}
 
 	public static class Reader
@@ -236,6 +243,32 @@ public class ScriptFormat
 		}
 	}
 
+	public static Builder create()
+	{
+		return new Builder();
+	}
+	public static class Builder
+	{
+		Writer writer = new Writer();
+
+		public Builder op(Opcode op)
+		{
+			writer.write(op);
+			return this;
+		}
+
+		public Builder data(byte[] data)
+		{
+			writer.writeData(data);
+			return this;
+		}
+
+		public byte[] build()
+		{
+			return writer.toByteArray();
+		}
+	}
+
 	public static class Writer
 	{
 		private final ByteArrayOutputStream s;
@@ -291,6 +324,11 @@ public class ScriptFormat
 				writeInt32 (data.length);
 				writeBytes (data);
 			}
+		}
+
+		public void write(Opcode opcode)
+		{
+			writeToken(new Token(opcode));
 		}
 
 		public void writeToken (Token token)

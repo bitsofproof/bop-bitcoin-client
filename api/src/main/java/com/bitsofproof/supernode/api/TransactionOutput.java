@@ -16,8 +16,10 @@
 package com.bitsofproof.supernode.api;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import com.bitsofproof.supernode.common.ScriptFormat;
+import com.bitsofproof.supernode.common.ValidationException;
 import com.bitsofproof.supernode.common.WireFormat;
 import com.google.protobuf.ByteString;
 
@@ -28,15 +30,59 @@ public class TransactionOutput implements Serializable, Cloneable
 {
 	private static final long serialVersionUID = 3028618872354766234L;
 
+	public static Builder create()
+	{
+		return new Builder();
+	}
+
+	public static final class Builder
+	{
+		private long value;
+		private byte[] script;
+
+		public Builder value(long v)
+		{
+			value = v;
+			return this;
+		}
+
+		public Builder script(byte[] s)
+		{
+			script = s;
+			return this;
+		}
+
+		public Builder payTo(Address address) throws ValidationException
+		{
+			script = address.getAddressScript();
+			return this;
+		}
+
+		public TransactionOutput build()
+		{
+			Objects.requireNonNull(script, "TransactionOutput script must be not null");
+
+			return new TransactionOutput(value, script);
+		}
+	}
+
 	private String txHash;
 	private long ix;
 	private long value;
 	private byte[] script;
 
+	public TransactionOutput()
+	{
+	}
+
+	public TransactionOutput(long value, byte[] script)
+	{
+		this.value = value;
+		this.script = script;
+	}
+
 	/**
 	 * Hash of the transaction this output is part of. This is computed if hash of the transaction is computed.
-	 * 
-	 * @return
 	 */
 	public String getTxHash ()
 	{
@@ -45,8 +91,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * Set the transaction hash
-	 * 
-	 * @param txHash
 	 */
 	public void setTxHash (String txHash)
 	{
@@ -55,8 +99,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * Get the order number of this output within the transaction (starts with 0)
-	 * 
-	 * @return
 	 */
 	public long getIx ()
 	{
@@ -65,8 +107,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * Set the order number of this output within the transaction (starts with 0)
-	 * 
-	 * @param ix
 	 */
 	public void setIx (long ix)
 	{
@@ -75,8 +115,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * get the value reallocated
-	 * 
-	 * @return
 	 */
 	public long getValue ()
 	{
@@ -85,8 +123,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * set value to be reallocated
-	 * 
-	 * @param value
 	 */
 	public void setValue (long value)
 	{
@@ -95,8 +131,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * get the script a transaction spending this output has to fulfill This is usually an Address script, @see Address.getAddressScript
-	 * 
-	 * @return
 	 */
 	public byte[] getScript ()
 	{
@@ -111,8 +145,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * set the script a transaction spending this output has to fulfill This is usually an Address script, @see Address.getAddressScript
-	 * 
-	 * @return
 	 */
 	public void setScript (byte[] script)
 	{
@@ -129,8 +161,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * write the output in wire format to a writer
-	 * 
-	 * @param writer
 	 */
 	public void toWire (WireFormat.Writer writer)
 	{
@@ -140,9 +170,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * recreate the output from wire format
-	 * 
-	 * @param reader
-	 * @return
 	 */
 	public static TransactionOutput fromWire (WireFormat.Reader reader)
 	{
@@ -154,8 +181,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * Get the address referenced in the script. The parse might fail for not plain-vanilla transactions and return null
-	 * 
-	 * @return
 	 */
 	public Address getOutputAddress ()
 	{
@@ -179,8 +204,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * Write the output in protobuf format for server communication
-	 * 
-	 * @return
 	 */
 	public BCSAPIMessage.TransactionOutput toProtobuf ()
 	{
@@ -192,9 +215,6 @@ public class TransactionOutput implements Serializable, Cloneable
 
 	/**
 	 * recreate the output from protobuf server message
-	 * 
-	 * @param po
-	 * @return
 	 */
 	public static TransactionOutput fromProtobuf (BCSAPIMessage.TransactionOutput po)
 	{
